@@ -24,6 +24,7 @@ import org.openmrs.module.kenyaemr.reporting.data.converter.definition.FinalResu
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HIVTestOneDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HIVTestTwoDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSDiscordanceDataDefinition;
+import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSEncounterFacilityNameDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSLinkageFacilityLinkedDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSLinkageProviderHandedToDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSLinkageToCareDataDefinition;
@@ -112,7 +113,7 @@ public class HTSLinkageRegisterReportBuilder extends AbstractReportBuilder {
         dsd.addColumn("Facility Linked", new HTSLinkageFacilityLinkedDataDefinition(),"");
         // new columns
         dsd.addColumn("Provider Handed to", new HTSLinkageProviderHandedToDataDefinition(), "");
-
+        dsd.addColumn("facility", new HTSEncounterFacilityNameDataDefinition(2), null);
         dsd.addRowFilter(new HTSClientsLinkageRegisterCohortDefinition(), "");
         return dsd;
 

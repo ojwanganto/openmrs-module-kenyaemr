@@ -24,6 +24,7 @@ import org.openmrs.module.kenyaemr.reporting.data.converter.definition.FinalResu
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HIVTestOneDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HIVTestTwoDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSDiscordanceDataDefinition;
+import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSEncounterFacilityNameDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSLinkageToCareDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSProviderDataDefinition;
 import org.openmrs.module.kenyaemr.reporting.data.converter.definition.HTSRemarksDataDefinition;
@@ -129,6 +130,7 @@ public class HTSConfirmationRegisterReportBuilder extends AbstractReportBuilder 
         dsd.addColumn("everHadHIVSelfTest", new HTSSelfTestDataDefinition(), null);
         dsd.addColumn("provider", new HTSProviderDataDefinition(), null);
         dsd.addColumn("remarks", new HTSRemarksDataDefinition(), null);
+        dsd.addColumn("facility", new HTSEncounterFacilityNameDataDefinition(1), null);
 
         HTSConfirmationRegisterCohortDefinition cd = new HTSConfirmationRegisterCohortDefinition();
         cd.addParameter(new Parameter("startDate", "Start Date", Date.class));
