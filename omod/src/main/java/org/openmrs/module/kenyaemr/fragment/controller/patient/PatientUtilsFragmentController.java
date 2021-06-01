@@ -18,13 +18,17 @@ import org.openmrs.calculation.patient.PatientCalculationService;
 import org.openmrs.calculation.result.CalculationResult;
 import org.openmrs.calculation.result.CalculationResultMap;
 import org.openmrs.calculation.result.ListResult;
+import org.openmrs.calculation.result.SimpleResult;
 import org.openmrs.module.kenyacore.calculation.CalculationManager;
 import org.openmrs.module.kenyacore.calculation.CalculationUtils;
 import org.openmrs.module.kenyacore.calculation.PatientFlagCalculation;
 import org.openmrs.module.kenyaemr.Dictionary;
 import org.openmrs.module.kenyaemr.EmrConstants;
+import org.openmrs.module.kenyaemr.calculation.EmrCalculationUtils;
+import org.openmrs.module.kenyaemr.calculation.library.AppointmentTypeCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.ScheduledVisitOnDayCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.VisitsOnDayCalculation;
+import org.openmrs.module.kenyaemr.metadata.CommonMetadata;
 import org.openmrs.module.kenyaemr.metadata.HivMetadata;
 import org.openmrs.module.kenyaemr.regimen.RegimenChange;
 import org.openmrs.module.kenyaemr.regimen.RegimenChangeHistory;
@@ -104,6 +108,7 @@ public class PatientUtilsFragmentController {
 		PatientCalculationContext calcContext = cs.createCalculationContext();
 
 		Set<Integer> scheduled = CalculationUtils.patientsThatPass(cs.evaluate(allPatients, new ScheduledVisitOnDayCalculation(), params, calcContext));
+		CalculationResultMap actualAppointments = cs.evaluate(scheduled, new AppointmentTypeCalculation(), params, calcContext);
 		CalculationResultMap actual = cs.evaluate(scheduled, new VisitsOnDayCalculation(), params, calcContext);
 
 		// Sort patients and convert to simple objects
@@ -116,11 +121,16 @@ public class PatientUtilsFragmentController {
 
 			ListResult visitsResult = (ListResult) actual.get(p.getPatientId());
 			List<Visit> visits = CalculationUtils.extractResultValues(visitsResult);
+
+			SimpleResult apptDate = (SimpleResult) actualAppointments.get(p.getPatientId());
+			if (apptDate != null) {
+				so.put("appointmentType", apptDate.getValue().toString());
+			}
+
 			so.put("visits", ui.simplifyCollection(visits));
 
 			simplified.add(so);
 		}
-
 		return simplified;
 	}
 
