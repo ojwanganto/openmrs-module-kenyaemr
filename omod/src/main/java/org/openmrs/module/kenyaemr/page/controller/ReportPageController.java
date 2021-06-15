@@ -10,7 +10,9 @@
 package org.openmrs.module.kenyaemr.page.controller;
 
 import org.codehaus.jackson.node.ObjectNode;
+import org.openmrs.Location;
 import org.openmrs.api.AdministrationService;
+import org.openmrs.api.LocationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.kenyacore.CoreUtils;
 import org.openmrs.module.kenyacore.report.HybridReportDescriptor;
@@ -33,6 +35,7 @@ import org.openmrs.ui.framework.page.PageRequest;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -115,6 +118,8 @@ public class ReportPageController {
 		model.addAttribute("date", date);
 
 		model.addAttribute("requests", getRequests(definition, ui, reportService));
+
+		model.addAttribute("facilityList", getLocationForReporting());
 	}
 
 	/**
@@ -127,5 +132,29 @@ public class ReportPageController {
 	public SimpleObject[] getRequests(ReportDefinition definition, UiUtils ui, ReportService reportService) {
 		List<ReportRequest> requests = reportService.getReportRequests(definition, null, null, null);
 		return ui.simplifyCollection(requests);
+	}
+
+	/**
+	 * Gets a list of encounter locations to be provided as report parameter
+	 * @return
+	 */
+	public List<Location> getLocationForReporting() {
+
+		LocationService locationService = Context.getLocationService();
+		String query = "select distinct location_id from encounter where location_id is not null";
+		List<List<Object>> result = Context.getAdministrationService().executeSQL(query, true);
+		List<Location> locationList = new ArrayList<Location>();
+
+		if (result.size() > 0) {
+			for (int i = 0; i < result.size();i++) {
+				Integer locationId = (Integer) result.get(i).get(0);
+				Location thisLocation = locationService.getLocation(locationId);
+				if (thisLocation != null) {
+					locationList.add(thisLocation);
+				}
+			}
+		}
+		// get unique encounter location
+		return locationList;
 	}
 }

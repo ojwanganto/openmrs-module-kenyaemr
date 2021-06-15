@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.kenyaemr.reporting.cohort.definition.evaluator;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.annotation.Handler;
@@ -40,14 +41,29 @@ public class HTSRegisterCohortDefinitionEvaluator implements EncounterQueryEvalu
 		context = ObjectUtil.nvl(context, new EvaluationContext());
 		EncounterQueryResult queryResult = new EncounterQueryResult(definition, context);
 
-		String qry = "SELECT encounter_id from kenyaemr_etl.etl_hts_test t inner join person p on p.person_id=t.patient_id and p.voided=0 where t.test_type = 1 and t.voided = 0 and date(t.visit_date) BETWEEN date(:startDate) AND date(:endDate) ; ";
-
-		SqlQueryBuilder builder = new SqlQueryBuilder();
-		builder.append(qry);
 		Date startDate = (Date)context.getParameterValue("startDate");
 		Date endDate = (Date)context.getParameterValue("endDate");
+		String facilityOptions = (String) context.getParameterValue("facility");
+
+		//
+		SqlQueryBuilder builder = new SqlQueryBuilder();
+
+		String qry = "";
+		Integer reportFacilityId = null;
+		if (StringUtils.isNotBlank(facilityOptions) && facilityOptions.equalsIgnoreCase("All")) {
+			qry = "SELECT encounter_id from kenyaemr_etl.etl_hts_test t inner join person p on p.person_id=t.patient_id and p.voided=0 where t.test_type = 1 and t.voided = 0 and date(t.visit_date) BETWEEN date(:startDate) AND date(:endDate) ;";
+		} else {
+			reportFacilityId = Integer.valueOf(facilityOptions);
+			qry = "SELECT encounter_id from kenyaemr_etl.etl_hts_test t inner join person p on p.person_id=t.patient_id and p.voided=0 where t.test_type = 1 and t.voided = 0 and date(t.visit_date) BETWEEN date(:startDate) AND date(:endDate) and t.encounter_location in (:facilityList) ;";
+		}
+
+		builder.append(qry);
 		builder.addParameter("endDate", endDate);
 		builder.addParameter("startDate", startDate);
+		if (reportFacilityId != null) {
+			builder.addParameter("facilityList", reportFacilityId);
+		}
+		//
 
 		List<Integer> results = evaluationService.evaluateToList(builder, Integer.class, context);
 		queryResult.getMemberIds().addAll(results);
