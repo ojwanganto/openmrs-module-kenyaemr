@@ -15,6 +15,7 @@
 <htmlform>
 
     <script type="text/javascript" src="../moduleResources/kenyaemr/scripts/moment.js"></script>
+    <link rel="stylesheet" type="text/css" href="../moduleResources/kenyaemr/styles/kenyaemr_extras.css"></link>
     <script type="text/javascript">
         var ctxPath = typeof openmrsContextPath === 'string' ? openmrsContextPath : OPENMRS_CONTEXT_PATH;
         var populationTypeSelected = function () {
@@ -486,6 +487,9 @@
         //On Ready
         $(document).ready(function () {
             //pop type
+
+            var pgender = "<lookup expression="patient.gender" />";
+            var pAge = parseInt('<lookup expression="patient.age"/>');
             jq("#key-population").hide();
             jq("#priority-population").hide();
             jq('input[type=radio].key-population').prop("checked", false);
@@ -668,7 +672,154 @@
                 getField('hiv-final-result.value').val(1138);
             }
 
-        });
+        // add code for ML feature
+
+    // handle ML prediction button
+	jq("#btn-ml-prediction").click(function () {
+        var ctxPath = typeof openmrsContextPath === 'string' ? openmrsContextPath : OPENMRS_CONTEXT_PATH;
+		var latestMaritalStatus = "<lookup expression="fn.latestObs(1054).getValueCoded()"/>";
+		var monthsSinceLastTest = getValue('duration_months.value');
+		var populationType = getValue('population-type.value');
+		var isDisabled = getValue('has-disability.value');
+		var everTested = getValue("ever-tested.value");
+		var testedAs = getValue("couple-testing.value");
+		var entryPoint = getValue("hts-entry-point.value");
+		var testStrategy = getValue("strategy.value");
+		var tbScreening = getValue("tb-screening.value");
+		var selfTested = getValue("hb-self-test.value");
+
+		var predictionVariables = {
+			AgeAtTest: pAge,
+			MonthsSinceLastTest: monthsSinceLastTest,
+			Gender_Male: pgender == 'M' ? 1 : 0,
+			KeyPopulationType_GP: 0,
+			KeyPopulationType_SW: 0,
+			MaritalStatus_Married: 0,
+			MaritalStatus_Divorced: 0,
+			MaritalStatus_Polygamous: 0,
+			MaritalStatus_Widowed: 0,
+			MaritalStatus_Minor: 0,
+			PatientDisabled_Not_Disabled: 0,
+			EverTestedForHIV_Yes: 0,
+			ClientTestedAs_Individual: 0,
+			EntryPoint_VCT: 0,
+			EntryPoint_OPD: 0,
+			EntryPoint_MTC: 0,
+			EntryPoint_IPD: 0,
+			EntryPoint_MOBILE: 0,
+			EntryPoint_Other: 0,
+			EntryPoint_HB: 0,
+			EntryPoint_PEDS: 0,
+			TestingStrategy_VCT: 0,
+			TestingStrategy_HB: 0,
+			TestingStrategy_MOBILE: 0,
+			TestingStrategy_HP: 0,
+			TestingStrategy_NP: 0,
+			TBScreening_No_Presumed_TB: 0,
+			ClientSelfTested_No: 0
+		};
+
+        // convert marital status
+		if (latestMaritalStatus == 5555) { // married monogamous
+			predictionVariables.MaritalStatus_Married = 1;
+		} else if (latestMaritalStatus == 159715) { // married polygamous
+			predictionVariables.MaritalStatus_Polygamous = 1;
+		} else if (latestMaritalStatus == 1058) { // divorced
+			predictionVariables.MaritalStatus_Divorced = 1;
+		} else if (latestMaritalStatus == 1058) { // divorced
+			predictionVariables.MaritalStatus_Divorced = 1;
+		} else if (latestMaritalStatus == 1059) { // widowed
+			predictionVariables.MaritalStatus_Widowed = 1;
+		}
+
+		if (pAge &lt; 15) {
+			predictionVariables.MaritalStatus_Minor = 1;
+		}
+
+		// convert population type
+		if (populationType == 164928) {
+			predictionVariables.KeyPopulationType_GP = 1;
+		} else if (populationType == 164929) {
+			predictionVariables.KeyPopulationType_SW = 1;
+		}
+
+		// convert disability status
+		if (isDisabled == 1066) {
+			predictionVariables.PatientDisabled_Not_Disabled = 1;
+		}
+
+		// convert ever tested for hiv status
+		if (everTested == 1065) {
+			predictionVariables.EverTestedForHIV_Yes = 1;
+		}
+
+		// converter for tested as i.e. individual, couple:
+		if (testedAs == 164957) {
+			predictionVariables.ClientTestedAs_Individual = 1;
+		}
+
+		// convert entry point
+
+		if (entryPoint == 159940) { // VCT
+			predictionVariables.EntryPoint_VCT = 1;
+		} else if (entryPoint == 160542) { // OPD
+			predictionVariables.EntryPoint_OPD = 1;
+		} else if (entryPoint == 160456) { // Maternity
+			predictionVariables.EntryPoint_MTC = 1;
+		} else if (entryPoint == 5485) { // IPD
+			predictionVariables.EntryPoint_IPD = 1;
+		} else if (entryPoint == 159939) { // mobile
+			predictionVariables.EntryPoint_MOBILE = 1;
+		} else if (entryPoint == 159938) { // HB
+			predictionVariables.EntryPoint_HB = 1;
+		} else if (entryPoint == 162181) { // Paed
+			predictionVariables.EntryPoint_PEDS = 1;
+		} else if (entryPoint == 5622) { // Other
+			predictionVariables.EntryPoint_Other = 1;
+		}
+
+		// convert strategy
+
+		if (testStrategy == 159938) { // HB
+			predictionVariables.TestingStrategy_HB = 1;
+		} else if (testStrategy == 159939) { // Mobile
+			predictionVariables.TestingStrategy_MOBILE = 1;
+		} else if (testStrategy == 164163) { // HP
+			predictionVariables.TestingStrategy_HP = 1;
+		} else if (testStrategy == 164953) { // NP
+			predictionVariables.TestingStrategy_NP = 1;
+		} else if (testStrategy == 164954 || testStrategy == 164955) { // VCT
+			predictionVariables.TestingStrategy_VCT = 1;
+		}
+
+		// convert HIV self test
+		if (selfTested == 1066) {
+			predictionVariables.ClientSelfTested_No = 1;
+		}
+
+        var predResponse = '';
+		jq.ajax({
+			url: '/' + ctxPath + '/ws/rest/v1/edata/casefindingscore',
+			type: "POST",
+			contentType: 'application/json',
+			data: JSON.stringify(predictionVariables),
+			async: false,
+			success: function (response, textStatus, jqXHR) {
+				jq('#lbl-ml-prediction').text('Risk level: ' + JSON.stringify(response.result["probability(1)"]));
+			},
+			error: function (jqXHR, textStatus, errorThrown) {
+				console.log(jqXHR);
+				console.log(textStatus);
+				console.log(errorThrown);
+			}
+		});
+	});
+
+
+        // ----- end of ML feature
+
+
+     });
 
         var referralSelected = function () {
             var val = jq(this).val();
@@ -765,7 +916,8 @@
                 getField('kit-name-2.error').html('Please use a different kit.').hide();
             }
         });
-           </script>
+
+    </script>
 
     <div class="ke-form-header">
         <table style="width: 100%">
@@ -776,6 +928,7 @@
                             jq(function(){
                                 setValue("encounter-date.value", "");
                             });
+
                         </script>
                     </ifMode>
                     <ifMode mode="EDIT">
@@ -933,12 +1086,18 @@
                                     }
                                 };
                             });
+
                         </script>
                     </ifMode>
-                    HTS date: <encounterDate id="encounter-date" showTime="true" required="true"/>
+                    HTS date:
+                    <encounterDate id="encounter-date" showTime="true" required="true"/>
                 </td>
-                <td>HTS Provider : <encounterProvider default="currentUser" /></td>
-                <td>Location: <encounterLocation default="GlobalProperty:kenyaemr.defaultLocation" /></td>
+                <td>HTS Provider :
+                    <encounterProvider default="currentUser"/>
+                </td>
+                <td>Location:
+                    <encounterLocation default="GlobalProperty:kenyaemr.defaultLocation"/>
+                </td>
             </tr>
         </table>
     </div>
@@ -952,49 +1111,70 @@
                 <obs conceptId="164930"
                      answerConceptIds="164928,164929,138643"
                      answerLabels="General Population,Key Population,Priority Population" id="population-type"
-                     style="radio" />
+                     style="radio"/>
             </div>
             <table id="key-population">
                 <tr>
                     <td>
-                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="105AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="People who inject drugs" style="checkbox" /><br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="105AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="People who inject drugs" style="checkbox"/>
+                        <br/>
                         <includeIf velocityTest="$patient.gender == 'M'">
-                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="160578AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 answerLabel="Men who have sex with men" style="checkbox" /><br/>
+                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerConceptId="160578AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerLabel="Men who have sex with men" style="checkbox"/>
+                            <br/>
                         </includeIf>
                         <includeIf velocityTest="$patient.gender == 'F'">
-                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="160579AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 answerLabel="Female sex Worker" style="checkbox" id="female-sex-worker" /><br/>
+                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerConceptId="160579AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerLabel="Female sex Worker" style="checkbox" id="female-sex-worker"/>
+                            <br/>
                         </includeIf>
-                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="162277AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="People in prison and other closed settings" style="checkbox"  id="prisoner"/><br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="162277AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="People in prison and other closed settings" style="checkbox" id="prisoner"/>
+                        <br/>
                         <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="165100"
-                             answerLabel="Transgender" style="checkbox"  id="transgender"/><br/>
-                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="5622AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Other" style="checkbox" id="other" /><br/>
+                             answerLabel="Transgender" style="checkbox" id="transgender"/>
+                        <br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="5622AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Other" style="checkbox" id="other"/>
+                        <br/>
                     </td>
                 </tr>
             </table>
             <table id="priority-population">
                 <tr>
                     <td>
-                           <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="159674AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Fisher folk" style="checkbox" /><br/>
-                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="162198AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 answerLabel="Truck driver" style="checkbox" /><br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="159674AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Fisher folk" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="162198AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Truck driver" style="checkbox"/>
+                        <br/>
                         <includeIf velocityTest="$patient.gender == 'F'">
-                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="160549AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 answerLabel="Adolescent and young girls" style="checkbox" id="adyg" /><br/>
+                            <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerConceptId="160549AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 answerLabel="Adolescent and young girls" style="checkbox" id="adyg"/>
+                            <br/>
                         </includeIf>
-                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="162277AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Prisoner" style="checkbox" /><br/>
-                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="1175AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Not applicable" style="checkbox" id="other" /><br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="162277AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Prisoner" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="160581AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="1175AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Not applicable" style="checkbox" id="other"/>
+                        <br/>
                     </td>
                 </tr>
             </table>
-            <br />
+            <br/>
             <table id="tbl-disability">
                 <tr>
                     <td>
@@ -1002,27 +1182,37 @@
                         <obs id="has-disability" conceptId="164951"
                              answerConceptIds="1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              answerLabel="Yes,No"
-                             style="radio" />
+                             style="radio"/>
                         <br/>
                     </td>
                 </tr>
                 <tr id="disability">
-                    <td>  Please indicated the type of disability : <br/>
-                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="120291AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Hearing impairment" style="checkbox" /><br/>
-                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="147215AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Visual impairment" style="checkbox" /><br/>
-                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="151342AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Mentally Challenged" style="checkbox"  /><br/>
-                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="164538AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Physically Challenged" style="checkbox" /><br/>
-                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptId="5622AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             answerLabel="Other" style="checkbox" id="has-other-disability"  /><br/>
+                    <td> Please indicated the type of disability : <br/>
+                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="120291AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Hearing impairment" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="147215AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Visual impairment" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="151342AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Mentally Challenged" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="164538AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Physically Challenged" style="checkbox"/>
+                        <br/>
+                        <obs conceptId="162558AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptId="5622AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerLabel="Other" style="checkbox" id="has-other-disability"/>
+                        <br/>
 
-                       <table id="tbl-other-disability">
+                        <table id="tbl-other-disability">
                             <tr>
-                                <td>  &#160;&#160;&#160; Specify :
-                                    <obs id="other-disability" conceptId="160632" />
+                                <td> &#160;&#160;&#160; Specify :
+                                    <obs id="other-disability" conceptId="160632"/>
                                     &#160;&#160;&#160;
                                 </td>
                             </tr>
@@ -1040,7 +1230,7 @@
                         <obs id="ever-tested" conceptId="164401AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              answerConceptIds="1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              answerLabel="Yes,No"
-                             style="radio" />
+                             style="radio"/>
                         &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
                     </td>
                     <td> Duration in months since the last test:
@@ -1048,7 +1238,7 @@
                         />
                         &#160;&#160;&#160;
                     </td>
-                 </tr>
+                </tr>
             </table>
             <table id="tbl-hiv-selftest">
                 <tr>
@@ -1081,7 +1271,8 @@
                         />
                     </td>
                     <td>&#160;&#160;&#160;&#160; Date of self test
-                        <obs id="date-of-self-test" conceptId="164400AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" allowFutureDates="false"
+                        <obs id="date-of-self-test" conceptId="164400AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             allowFutureDates="false"
                         />
                     </td>
                 </tr>
@@ -1094,8 +1285,9 @@
             <table id="tbl-setting">
                 <tr>
                     <td>HTS Setting: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs id="setting" conceptId="165215"  answerConceptIds="1537AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,163488AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             style="radio" answerLabels="Facility,Community" required="true" />
+                        <obs id="setting" conceptId="165215"
+                             answerConceptIds="1537AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,163488AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             style="radio" answerLabels="Facility,Community" required="true"/>
                     </td>
                 </tr>
             </table>
@@ -1105,9 +1297,10 @@
             <table id="tbl-approach">
                 <tr>
                     <td>HTS Approach: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                                      &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs id="approach" conceptId="163556"  answerConceptIds="164163,164953"
-                             style="dropdown" answerLabels="Provider Initiated Testing(PITC),Client Initiated Testing (CITC)" />
+                        &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+                        <obs id="approach" conceptId="163556" answerConceptIds="164163,164953"
+                             style="dropdown"
+                             answerLabels="Provider Initiated Testing(PITC),Client Initiated Testing (CITC)"/>
                     </td>
                 </tr>
             </table>
@@ -1142,13 +1335,13 @@
                     </td>
                     <td>
                         <table id="tbl-other-strategy">
-                             <tr>
-                                <td>  &#160;&#160;&#160; Specify :
-                                    <obs id="other-strategy" conceptId="163761" />
+                            <tr>
+                                <td> &#160;&#160;&#160; Specify :
+                                    <obs id="other-strategy" conceptId="163761"/>
                                     &#160;&#160;&#160;
                                 </td>
-                           </tr>
-                          </table>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             </table>
@@ -1197,13 +1390,15 @@
                 </tr>
             </table>
         </fieldset>
+
         <fieldset>
             <legend>HIV Testing</legend>
             <table id="tbl-consent">
                 <tr>
                     <td>Has consent been given? &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs class="consent" conceptId="1710AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"  id="clientConsent" required="true"
-                             style="yes_no" />
+                        <obs class="consent" conceptId="1710AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" id="clientConsent"
+                             required="true"
+                             style="yes_no"/>
                     </td>
                 </tr>
             </table>
@@ -1216,11 +1411,23 @@
                     </td>
                 </tr>
             </table>
-            <br />
+            <br/>
+            <div>
+                <table>
+                    <tr>
+                        <td>
+                            <button type="button" class="ke-program-followup-button" id="btn-ml-prediction">Get
+                                prediction
+                            </button>
+                        </td>
+                        <td><label id="lbl-ml-prediction"></label></td>
+                    </tr>
+                </table>
+            </div>
             <table id="tbl-hiv-test">
                 <obsgroup groupingConceptId="164410AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">
                     <tr>
-                          <td>&#160;&#160;&#160;&#160; Kit Name
+                        <td>&#160;&#160;&#160;&#160; Kit Name
                             <obs class="kit-name"
                                  id="kit-name-1"
                                  conceptId="164962"
@@ -1229,16 +1436,18 @@
                             />
                         </td>
                         <td>&#160;&#160;&#160;&#160;Lot Number
-                            <obs  class="lot-number" id="lot-number-1" conceptId="164964" />
+                            <obs class="lot-number" id="lot-number-1" conceptId="164964"/>
                         </td>
                         <td>
                             <div id="latest-lot-number">
-                                <input type="checkbox" name="last-batch-number" id="latestLotNumber" /> Use last lot number
+                                <input type="checkbox" name="last-batch-number" id="latestLotNumber"/> Use last lot
+                                number
                                 <span id="upnError" class="error"></span>
                             </div>
                         </td>
                         <td>&#160;&#160;&#160;&#160;Expiry Date
-                            <obs id="expiry-date" conceptId="162502AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" allowFutureDates="true"
+                            <obs id="expiry-date" conceptId="162502AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 allowFutureDates="true"
                             />
                         </td>
                         <td>&#160;&#160;&#160;&#160;HIV Test 1 Results:
@@ -1247,12 +1456,12 @@
                                  style="dropdown" answerLabels="Positive,Negative,Invalid"/>
                         </td>
                         <td>
-                        <div id="dual-results-1" style="display:none;" >&#160;&#160;&#160;&#160; Syphilis Results
-                            <obs conceptId="299AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 id="syphilis-test-results-1"
-                                 answerConceptIds="1229AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1228AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                 answerLabels="Negative,Positive"/>
-                        </div>
+                            <div id="dual-results-1" style="display:none;">&#160;&#160;&#160;&#160; Syphilis Results
+                                <obs conceptId="299AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                     id="syphilis-test-results-1"
+                                     answerConceptIds="1229AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1228AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                     answerLabels="Negative,Positive"/>
+                            </div>
                         </td>
 
                     </tr>
@@ -1277,12 +1486,14 @@
                         </td>
                         <td>
                             <div id="latest-lot-number2">
-                                <input type="checkbox" name="last-batch-number" id="latestLotNumber2" value="1" /> Use last lot number
+                                <input type="checkbox" name="last-batch-number" id="latestLotNumber2" value="1"/> Use
+                                last lot number
                                 <span id="upnError2" class="error"></span>
                             </div>
                         </td>
                         <td>&#160;&#160;&#160;&#160;Expiry Date
-                            <obs id="expiry-date2" conceptId="162501AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" allowFutureDates="true"
+                            <obs id="expiry-date2" conceptId="162501AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                 allowFutureDates="true"
                             />
                         </td>
                         <td>&#160;&#160;&#160;&#160;HIV Test 2 Results:
@@ -1294,23 +1505,24 @@
                 </obsgroup>
                 <tr>
                     <td>Final Results:&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs id="hiv-final-result" conceptId="159427AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptIds="703AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,664AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1138AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                        <obs id="hiv-final-result" conceptId="159427AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptIds="703AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,664AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1138AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              answerLabels="Positive,Negative,Inconclusive"/>
                     </td>
                     <td>
-                    <table id="tbl-results-given">
+                        <table id="tbl-results-given">
                             <tr>
-                            <td>&#160;&#160;&#160;&#160;Results given to client?&#160;&#160;&#160;&#160;
-                                <obs class="result-given" conceptId="164848AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                     answerConceptIds="1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                                     style="dropdown" answerLabels="YES,NO"/>
-                            </td>
-                        </tr>
-                    </table>
+                                <td>&#160;&#160;&#160;&#160;Results given to client?&#160;&#160;&#160;&#160;
+                                    <obs class="result-given" conceptId="164848AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                         answerConceptIds="1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                                         style="dropdown" answerLabels="YES,NO"/>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             </table>
-            <br />
+            <br/>
             <table id="tbl-discordant">
                 <tr>
                     <td>Couple is discordant: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
@@ -1326,8 +1538,9 @@
             <table id="tbl-tb-screening">
                 <tr>
                     <td>Tb Screening results: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs id="tb-screening" conceptId="1659AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"  answerConceptIds="1660AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,142177AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160737AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1111AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             style="radio" answerLabels="No TB Signs,Presumed TB,Not Done,On TB Treatment" />
+                        <obs id="tb-screening" conceptId="1659AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             answerConceptIds="1660AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,142177AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160737AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1111AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+                             style="radio" answerLabels="No TB Signs,Presumed TB,Not Done,On TB Treatment"/>
                     </td>
                 </tr>
             </table>
@@ -1343,46 +1556,48 @@
                                                164461AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              style="radio" answerLabels="Confirmatory test,
                                                          Comprehensive care center,
-                                                         DBS for PCR" />
+                                                         DBS for PCR"/>
                     </td>
                 </tr>
                 <tr>
-                    <td>Referral to:  &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+                    <td>Referral to: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
                         <obs id="referral-to" conceptId="160481AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                              answerConceptIds="163266AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
                                                164407AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                             style="dropdown" answerLabels="This health facility,Other health facility" />
+                             style="dropdown" answerLabels="This health facility,Other health facility"/>
                     </td>
                     <td>
                         <br/>
                         <table id="tbl-other-facility">
                             <tr>
-                                <td>  &#160;&#160;&#160; Facility name :
-                                    <obs id="other-facility" conceptId="161550AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" />
+                                <td> &#160;&#160;&#160; Facility name :
+                                    <obs id="other-facility" conceptId="161550AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"/>
                                     &#160;&#160;&#160;
                                 </td>
                             </tr>
                         </table>
-                    </td> <td>
-                    <br/>
-                    <table id="tbl-this-facility">
-                        <tr>
-                            <td>  &#160;&#160;&#160; Name :
-                                <obs id="this-facility" conceptId="161550AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" />
-                                &#160;&#160;&#160;
-                            </td>
-                        </tr>
-                    </table>
-                </td>
+                    </td>
+                    <td>
+                        <br/>
+                        <table id="tbl-this-facility">
+                            <tr>
+                                <td> &#160;&#160;&#160; Name :
+                                    <obs id="this-facility" conceptId="161550AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"/>
+                                    &#160;&#160;&#160;
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
                 </tr>
             </table>
         </fieldset>
         <fieldset>
-            <legend>Remarks </legend>
+            <legend>Remarks</legend>
             <table id="tbl-remarks">
                 <tr>
-                    <td> &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Remarks: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-                        <obs class="remarks" conceptId="163042AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"  rows="5" cols="80"
+                    <td> &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160; &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Remarks:
+                        &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+                        <obs class="remarks" conceptId="163042AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" rows="5" cols="80"
                         />
                     </td>
                 </tr>
