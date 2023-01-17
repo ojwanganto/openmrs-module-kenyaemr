@@ -251,4 +251,15 @@
 		<property name="developer" value="${user.name}"/>
 	</bean>
 
+	<bean id="defaultAppointmentNotifier" class="org.openmrs.module.kenyaemr.appointmentNotifier.DefaultAppointmentCreationNotifier"/>
+
+	<!--    <ref bean="defaultAppointmentNotifier"/>-->
+
+	<bean id="patientAppointmentNotifierService" class="org.openmrs.module.appointments.service.impl.PatientAppointmentNotifierService">
+		<property name="eventNotifiers">
+			<list value-type="org.openmrs.module.appointments.notification.AppointmentEventNotifier">
+				<ref bean="defaultAppointmentNotifier"/>
+			</list>
+		</property>
+	</bean>
 </beans>
