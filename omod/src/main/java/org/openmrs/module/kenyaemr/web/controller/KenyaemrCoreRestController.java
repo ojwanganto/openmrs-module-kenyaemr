@@ -297,6 +297,14 @@ public class KenyaemrCoreRestController extends BaseRestController {
         return resultNode.toString();
 
     }
+
+    @RequestMapping(method = RequestMethod.GET, value = "/convertJsonListToObject")
+    @ResponseBody
+    public Object convertJsonListToObject(@RequestParam("sex") String sex) {
+        ObjectNode resultNode = ZScoreUtil.convertToObject(sex);
+        return resultNode.toString();
+
+    }
     /**
      * Generate payload for a form descriptor. Required when serving forms to the frontend
      * @param descriptor

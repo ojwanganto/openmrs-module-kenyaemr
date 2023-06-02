@@ -11,6 +11,7 @@ package org.openmrs.module.kenyaemr.util;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 
 import java.io.IOException;
@@ -130,5 +131,28 @@ public class ZScoreUtil {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public static ObjectNode convertToObject(String sex) {
+
+        ArrayNode sdList = null;
+        ObjectNode finalObject = JsonNodeFactory.instance.objectNode();
+
+        if (sex.equals("M")) {
+            sdList = readZScoreFile(WEIGHT_FOR_LENGTH_BOYS_FILE);
+        } else if (sex.equals("F")) {
+            sdList = readZScoreFile(WEIGHT_FOR_LENGTH_GIRLS_FILE);
+        }
+
+        for (int i = 0; i < sdList.size(); i++) {
+            ObjectNode objNode = (ObjectNode) sdList.get(i);
+            Double key = objNode.get("Length").asDouble();
+            //ObjectNode newObject = JsonNodeFactory.instance.objectNode();
+
+            finalObject.put(String.valueOf(key), objNode);
+
+        }
+
+        return finalObject;
     }
 }
