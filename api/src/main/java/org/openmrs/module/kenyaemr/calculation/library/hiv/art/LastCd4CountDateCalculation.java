@@ -1,15 +1,11 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
 package org.openmrs.module.kenyaemr.calculation.library.hiv.art;
 
@@ -18,11 +14,11 @@ import org.openmrs.calculation.patient.PatientCalculationContext;
 import org.openmrs.calculation.result.CalculationResultMap;
 import org.openmrs.calculation.result.SimpleResult;
 import org.openmrs.module.kenyacore.calculation.AbstractPatientCalculation;
+import org.openmrs.module.kenyacore.calculation.Calculations;
+import org.openmrs.module.kenyaemr.Dictionary;
 import org.openmrs.module.kenyaemr.calculation.EmrCalculationUtils;
-import org.openmrs.module.kenyaemr.calculation.library.hiv.LastCd4CountCalculation;
 
 import java.util.Collection;
-import java.util.Date;
 import java.util.Map;
 
 /**
@@ -34,15 +30,11 @@ public class LastCd4CountDateCalculation extends AbstractPatientCalculation {
 	public CalculationResultMap evaluate(Collection<Integer> cohort, Map<String, Object> parameterValues,
 										 PatientCalculationContext context) {
 
-		CalculationResultMap lastCd4 = calculate(new LastCd4CountCalculation(), cohort, context);
+		CalculationResultMap lastCd4 = Calculations.lastObs(Dictionary.getConcept(Dictionary.CD4_COUNT), cohort, context);
 		CalculationResultMap result = new CalculationResultMap();
 		for (Integer ptId : cohort) {
 			Obs  cd4Obs = EmrCalculationUtils.obsResultForPatient(lastCd4, ptId);
-			Date lastCd4Date = null;
-			if(cd4Obs != null){
-				lastCd4Date = cd4Obs.getObsDatetime();
-			}
-			result.put(ptId, new SimpleResult(lastCd4Date, this));
+			result.put(ptId, new SimpleResult(cd4Obs, this));
 		}
 		return  result;
 	}

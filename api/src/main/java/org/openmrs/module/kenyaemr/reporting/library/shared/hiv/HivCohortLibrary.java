@@ -1,29 +1,30 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.reporting.library.shared.hiv;
 
 import org.openmrs.Concept;
 import org.openmrs.EncounterType;
 import org.openmrs.Program;
-import org.openmrs.api.PatientSetService;
+import org.openmrs.module.reporting.cohort.definition.BaseObsCohortDefinition.TimeModifier;
 import org.openmrs.module.kenyacore.report.ReportUtils;
 import org.openmrs.module.kenyacore.report.cohort.definition.CalculationCohortDefinition;
+import org.openmrs.module.kenyacore.report.cohort.definition.DateCalculationCohortDefinition;
 import org.openmrs.module.kenyacore.report.cohort.definition.DateObsValueBetweenCohortDefinition;
 import org.openmrs.module.kenyaemr.Dictionary;
-import org.openmrs.module.kenyaemr.calculation.library.hiv.OnCtxWithinDurationCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.CtxFromAListOfMedicationOrdersCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.FirstProgramEnrollment;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.LostToFollowUpCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.art.IsTransferOutCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.pre_art.TransferredInAfterEnrollmentCalculation;
 import org.openmrs.module.kenyaemr.metadata.HivMetadata;
+import org.openmrs.module.kenyaemr.reporting.library.moh731.Moh731CohortLibrary;
 import org.openmrs.module.kenyaemr.reporting.library.shared.common.CommonCohortLibrary;
 import org.openmrs.module.metadatadeploy.MetadataUtils;
 import org.openmrs.module.reporting.cohort.definition.CodedObsCohortDefinition;
@@ -47,6 +48,9 @@ public class HivCohortLibrary {
 	@Autowired
 	private CommonCohortLibrary commonCohorts;
 
+	@Autowired
+	private Moh731CohortLibrary moh731CohortLibrary;
+
 	/**
 	 * Patients referred from the given entry point onto the HIV program
 	 * @param entryPoints the entry point concepts
@@ -60,7 +64,7 @@ public class HivCohortLibrary {
 		cd.setName("referred from");
 		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
 		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
-		cd.setTimeModifier(PatientSetService.TimeModifier.ANY);
+		cd.setTimeModifier(TimeModifier.ANY);
 		cd.setQuestion(methodOfEnrollment);
 		cd.setValueList(Arrays.asList(entryPoints));
 		cd.setOperator(SetComparator.IN);
@@ -81,7 +85,7 @@ public class HivCohortLibrary {
 		cd.setName("referred not from");
 		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
 		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
-		cd.setTimeModifier(PatientSetService.TimeModifier.ANY);
+		cd.setTimeModifier(TimeModifier.ANY);
 		cd.setQuestion(methodOfEnrollment);
 		cd.setValueList(Arrays.asList(entryPoints));
 		cd.setOperator(SetComparator.NOT_IN);
@@ -176,10 +180,14 @@ public class HivCohortLibrary {
 		onCtx.setName("on CTX prophylaxis");
 		onCtx.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
 		onCtx.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
-		onCtx.setTimeModifier(PatientSetService.TimeModifier.LAST);
+		onCtx.setTimeModifier(TimeModifier.LAST);
 		onCtx.setQuestion(Dictionary.getConcept(Dictionary.COTRIMOXAZOLE_DISPENSED));
 		onCtx.setValueList(Arrays.asList(Dictionary.getConcept(Dictionary.YES)));
 		onCtx.setOperator(SetComparator.IN);
+
+		CalculationCohortDefinition ctxFromAListOfMedicationOrders = new CalculationCohortDefinition(new CtxFromAListOfMedicationOrdersCalculation());
+		ctxFromAListOfMedicationOrders.setName("ctxFromAListOfMedicationOrders");
+		ctxFromAListOfMedicationOrders.addParameter(new Parameter("OnDate", "On Date", Date.class));
 
 		//we need to include those patients who have either ctx in the med orders
 		//that was not captured coded obs
@@ -189,12 +197,40 @@ public class HivCohortLibrary {
 		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
 		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
 		cd.addSearch("onCtx", ReportUtils.map(onCtx, "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
-		cd.addSearch("onMedCtx", ReportUtils.map(commonCohorts.medicationDispensed(Dictionary.getConcept(Dictionary.SULFAMETHOXAZOLE_TRIMETHOPRIM)),"onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
-		cd.addSearch("onCtxOnDuration", ReportUtils.map(onCtxOnDuration(), "onDate=${onOrBefore}"));
-		cd.setCompositionString("onCtx OR onMedCtx OR onCtxOnDuration");
+		cd.addSearch("onMedCtx", ReportUtils.map(commonCohorts.medicationDispensed(Dictionary.getConcept(Dictionary.SULFAMETHOXAZOLE_TRIMETHOPRIM), Dictionary.getConcept(Dictionary.DAPSONE)),"onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("ctxFromAListOfMedicationOrders", ReportUtils.map(ctxFromAListOfMedicationOrders, "onDate=${onOrBefore}"));
+		cd.addSearch("transferredOutDeadAndLtf", ReportUtils.map(transferredOutDeadAndLtf(), "onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("(onCtx OR onMedCtx OR ctxFromAListOfMedicationOrders) AND NOT transferredOutDeadAndLtf");
 
 		return cd;
 	}
+
+	/**
+	 * Patients who are transferred out, deads ltf
+	 * @return the cohort definition
+	 */
+	public CohortDefinition transferredOutDeadAndLtf(){
+		CalculationCohortDefinition calcLtf = new CalculationCohortDefinition(new LostToFollowUpCalculation());
+		calcLtf.setName("lost to follow up");
+		calcLtf.addParameter(new Parameter("onDate", "On Date", Date.class));
+
+		CalculationCohortDefinition calcTout = new CalculationCohortDefinition(new IsTransferOutCalculation());
+		calcTout.setName("to patients");
+		calcTout.addParameter(new Parameter("onDate", "On Date", Date.class));
+
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+
+		cd.addSearch("deceased", ReportUtils.map(commonCohorts.deceasedPatients(), "onDate=${onOrBefore}"));
+		cd.addSearch("ltf", ReportUtils.map(calcLtf, "onDate=${onOrBefore}"));
+		cd.addSearch("to", ReportUtils.map(calcTout, "onDate=${onOrBefore}"));
+		cd.addSearch("missedAppointment", ReportUtils.map(moh731CohortLibrary.missedAppointment(), "onDate=${onOrBefore}"));
+		cd.setCompositionString("deceased OR ltf OR to OR missedAppointment");
+
+		return cd;
+
+	}
+
 
 	/**
 	 * Patients who are in HIV care and are taking CTX prophylaxis between ${onOrAfter} and ${onOrBefore}
@@ -208,7 +244,8 @@ public class HivCohortLibrary {
 		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
 		cd.addSearch("inProgram", ReportUtils.map(commonCohorts.inProgram(hivProgram), "onDate=${onOrBefore}"));
 		cd.addSearch("onCtxProphylaxis", ReportUtils.map(onCtxProphylaxis(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
-		cd.setCompositionString("inProgram AND onCtxProphylaxis");
+		cd .addSearch("transferredOutDeadAndLtf", ReportUtils.map(transferredOutDeadAndLtf(), "onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("(inProgram AND onCtxProphylaxis) AND NOT transferredOutDeadAndLtf");
 		return cd;
 	}
 
@@ -260,7 +297,7 @@ public class HivCohortLibrary {
 		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
 		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
 		cd.addSearch("resultOfHivTest", ReportUtils.map(commonCohorts.hasObs(hivStatus, unknown, positive, negative), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
-		cd.addSearch("testedForHivHivInfected", ReportUtils.map(commonCohorts.hasObs(hivInfected, indeterminate,positive,negative), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("testedForHivHivInfected", ReportUtils.map(commonCohorts.hasObs(hivInfected, indeterminate, positive, negative), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
 		cd.setCompositionString("resultOfHivTest OR testedForHivHivInfected");
 		return cd;
 	}
@@ -296,15 +333,31 @@ public class HivCohortLibrary {
 		return cd;
 
 	}
-
 	/**
-	 * Patients who are on ctx on ${onDate}
-	 * @return the cohort definition
+	 * Patients enrolled in HIV program based on their first enrollment
+	 * @return the CohortDefinition
 	 */
-	public CohortDefinition onCtxOnDuration() {
-		CalculationCohortDefinition cd = new CalculationCohortDefinition(new OnCtxWithinDurationCalculation());
-		cd.setName("On CTX on date");
-		cd.addParameter(new Parameter("onDate", "On Date", Date.class));
-		return cd;
+	public CohortDefinition firstProgramEnrollment(Integer outcomePeriod) {
+		DateCalculationCohortDefinition cd = new DateCalculationCohortDefinition(new FirstProgramEnrollment());
+		cd.setName("First program enrollment date");
+		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+
+		CompositionCohortDefinition compCd = new CompositionCohortDefinition();
+		compCd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		compCd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+
+		CalculationCohortDefinition calcCd = new CalculationCohortDefinition(new TransferredInAfterEnrollmentCalculation());
+		calcCd.setName("boolean transfer in after enrollment");
+		calcCd.addParameter(new Parameter("onDate", "On Date", Date.class));
+		calcCd.addCalculationParameter("outcomePeriod", outcomePeriod);
+
+
+		compCd.addSearch("cd", ReportUtils.map(cd, "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		compCd.addSearch("calcCd", ReportUtils.map(calcCd));
+
+		compCd.setCompositionString("cd AND NOT calcCd");
+
+		return compCd;
 	}
 }

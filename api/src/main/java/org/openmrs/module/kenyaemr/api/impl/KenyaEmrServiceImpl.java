@@ -1,21 +1,23 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.api.impl;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.json.simple.JSONObject;
 import org.openmrs.GlobalProperty;
 import org.openmrs.Location;
 import org.openmrs.LocationAttributeType;
@@ -23,6 +25,7 @@ import org.openmrs.Patient;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.Visit;
 import org.openmrs.api.APIException;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.impl.BaseOpenmrsService;
@@ -31,24 +34,27 @@ import org.openmrs.module.idgen.IdentifierSource;
 import org.openmrs.module.idgen.SequentialIdentifierGenerator;
 import org.openmrs.module.idgen.service.IdentifierSourceService;
 import org.openmrs.module.idgen.validator.LuhnModNIdentifierValidator;
-import org.openmrs.module.kenyaemr.metadata.FacilityMetadata;
-import org.openmrs.module.kenyaemr.wrapper.Facility;
-import org.openmrs.module.metadatadeploy.MetadataUtils;
+import org.openmrs.module.kenyacore.identifier.IdentifierManager;
 import org.openmrs.module.kenyaemr.EmrConstants;
 import org.openmrs.module.kenyaemr.api.KenyaEmrService;
 import org.openmrs.module.kenyaemr.api.db.KenyaEmrDAO;
-import org.openmrs.module.kenyacore.identifier.IdentifierManager;
 import org.openmrs.module.kenyaemr.metadata.CommonMetadata;
+import org.openmrs.module.kenyaemr.metadata.FacilityMetadata;
 import org.openmrs.module.kenyaemr.metadata.HivMetadata;
+import org.openmrs.module.kenyaemr.util.RowMapper;
+import org.openmrs.module.kenyaemr.util.SqlQueryHelper;
+import org.openmrs.module.kenyaemr.wrapper.Facility;
+import org.openmrs.module.metadatadeploy.MetadataUtils;
+import org.openmrs.module.webservices.rest.SimpleObject;
+import org.openmrs.util.DatabaseUpdater;
 import org.openmrs.util.OpenmrsUtil;
 import org.openmrs.util.PrivilegeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.*;
 
 /**
  * Implementations of business logic methods for KenyaEMR
@@ -77,7 +83,7 @@ public class KenyaEmrServiceImpl extends BaseOpenmrsService implements KenyaEmrS
 	public void setKenyaEmrDAO(KenyaEmrDAO dao) {
 		this.dao = dao;
 	}
-	
+
 	/**
 	 * @see org.openmrs.module.kenyaemr.api.KenyaEmrService#isSetupRequired()
 	 */
@@ -106,38 +112,38 @@ public class KenyaEmrServiceImpl extends BaseOpenmrsService implements KenyaEmrS
 		gp.setValue(location);
 		Context.getAdministrationService().saveGlobalProperty(gp);
 	}
-	
+
 	/**
 	 * @see org.openmrs.module.kenyaemr.api.KenyaEmrService#getDefaultLocation()
 	 */
 	@Override
 	public Location getDefaultLocation() {
 		try {
-			Context.addProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
-			Context.addProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+			Context.addProxyPrivilege(PrivilegeConstants.GET_LOCATIONS);
+			Context.addProxyPrivilege(PrivilegeConstants.GET_GLOBAL_PROPERTIES);
 
 			GlobalProperty gp = Context.getAdministrationService().getGlobalPropertyObject(EmrConstants.GP_DEFAULT_LOCATION);
 			return gp != null ? ((Location) gp.getValue()) : null;
 		}
 		finally {
-			Context.removeProxyPrivilege(PrivilegeConstants.VIEW_LOCATIONS);
-			Context.removeProxyPrivilege(PrivilegeConstants.VIEW_GLOBAL_PROPERTIES);
+			Context.removeProxyPrivilege(PrivilegeConstants.GET_LOCATIONS);
+			Context.removeProxyPrivilege(PrivilegeConstants.GET_GLOBAL_PROPERTIES);
 		}
 	}
-	
+
 	/**
 	 * @see org.openmrs.module.kenyaemr.api.KenyaEmrService#getDefaultLocationMflCode()
 	 */
 	@Override
 	public String getDefaultLocationMflCode() {
 		try {
-			Context.addProxyPrivilege(PrivilegeConstants.VIEW_LOCATION_ATTRIBUTE_TYPES);
+			Context.addProxyPrivilege(PrivilegeConstants.GET_LOCATION_ATTRIBUTE_TYPES);
 
 			Location location = getDefaultLocation();
 			return (location != null) ? new Facility(location).getMflCode() : null;
 		}
 		finally {
-			Context.removeProxyPrivilege(PrivilegeConstants.VIEW_LOCATION_ATTRIBUTE_TYPES);
+			Context.removeProxyPrivilege(PrivilegeConstants.GET_LOCATION_ATTRIBUTE_TYPES);
 		}
 	}
 
@@ -169,7 +175,7 @@ public class KenyaEmrServiceImpl extends BaseOpenmrsService implements KenyaEmrS
 
 		String prefix = Context.getService(KenyaEmrService.class).getDefaultLocationMflCode();
 		String sequentialNumber = Context.getService(IdentifierSourceService.class).generateIdentifier(source, comment);
-		return prefix + sequentialNumber;
+		return prefix+sequentialNumber;
 	}
 
 	/**
@@ -252,5 +258,103 @@ public class KenyaEmrServiceImpl extends BaseOpenmrsService implements KenyaEmrS
 
 		AutoGenerationOption auto = new AutoGenerationOption(idType, idGen, true, true);
 		idService.saveAutoGenerationOption(auto);
+	}
+
+	@Override
+	public List<Object> executeSqlQuery(String query, Map<String, Object> substitutions) {
+		return dao.executeSqlQuery(query, substitutions);
+	}
+
+	@Override
+	public List<Object> executeHqlQuery(String query, Map<String, Object> substitutions) {
+		return dao.executeHqlQuery(query, substitutions);
+	}
+
+	/**
+	 * @param queryId
+	 * @param params
+	 * @return
+	 */
+	@Override
+	public List<SimpleObject> search(String queryId, Map<String, String[]> params) {
+		Map<String, String[]> updatedParams = conditionallyAddVisitLocation(params);
+		List<SimpleObject> results = new ArrayList<SimpleObject>();
+		SqlQueryHelper sqlQueryHelper = new SqlQueryHelper();
+		String query = getSql(queryId);
+		try(Connection conn = DatabaseUpdater.getConnection();
+			PreparedStatement statement = sqlQueryHelper.constructPreparedStatement(query,updatedParams,conn);
+			ResultSet resultSet = statement.executeQuery()) {
+
+			RowMapper rowMapper = new RowMapper();
+			while (resultSet.next()) {
+				results.add(rowMapper.mapRow(resultSet));
+			}
+			return results;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private String getSql(String queryId) {
+		String query = Context.getAdministrationService().getGlobalProperty(queryId);
+		if (query == null) throw new RuntimeException("No such query:" + queryId);
+		return query;
+	}
+
+	private Map<String, String[]> conditionallyAddVisitLocation(Map<String, String[]> params) {
+		Map<String, String[]> updatedParams = new HashMap<String, String[]>(params);
+		if (params.containsKey("location_uuid")) {
+			String locationUuid = params.get("location_uuid")[0];
+			String[] visitLocationValue = {locationUuid};
+			updatedParams.put("visit_location_uuid", visitLocationValue);
+		}
+		return updatedParams;
+	}
+
+	@Override
+	public SimpleObject sendKenyaEmrSms(String recipient, String message) {
+		SimpleObject response = new SimpleObject();
+		try {
+			response.add("response", _Sms(recipient, message));
+		} catch (Exception e) {
+			response.add("response", "Failed to send SMS " + e.getMessage());
+			throw new RuntimeException(e);
+		}
+
+		return response;
+	}
+	public static String _Sms(String recipient, String message) throws Exception {
+		CloseableHttpClient httpClient = HttpClients.createDefault();
+		String responseMsg = null;
+		try {
+			AdministrationService administrationService = Context.getAdministrationService();
+			HttpPost postRequest = new HttpPost(administrationService.getGlobalProperty("kenyaemr.sms.url"));
+			postRequest.setHeader("api-token", administrationService.getGlobalProperty("kenyaemr.sms.apiToken"));
+			JSONObject json = new JSONObject();
+			json.put("destination", recipient);
+			json.put("msg", message);
+			json.put("sender_id", administrationService.getGlobalProperty("kenyaemr.sms.senderId"));
+			json.put("gateway", administrationService.getGlobalProperty("kenyaemr.sms.gateway") );
+
+			StringEntity entity = new StringEntity(json.toString());
+			postRequest.setEntity(entity);
+			postRequest.setHeader("Content-Type", "application/json");
+
+			try (CloseableHttpResponse response = httpClient.execute(postRequest)) {
+				int statusCode = response.getStatusLine().getStatusCode();
+				String responseBody = EntityUtils.toString(response.getEntity());
+
+				if (statusCode == 200) {
+					responseMsg = "SMS sent successfully" + responseBody;
+					System.out.println("SMS sent successfully \n" + responseBody);
+				} else {
+					responseMsg = "Failed to send SMS " + responseBody;
+					System.err.println("Failed to send SMS \n" + responseBody);
+				}
+			}
+		} finally {
+			httpClient.close();
+		}
+		return responseMsg;
 	}
 }

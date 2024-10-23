@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file, You can
+    obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+    the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
+
+    Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+    graphic logo is a trademark of OpenMRS Inc.
+
+-->
 <beans xmlns="http://www.springframework.org/schema/beans"
 	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
@@ -17,13 +28,14 @@
 		</property>
 		<property name="reports">
 			<set>
-				<ref bean="kenyaemr.tb.report.smear.not.done.ptb.2.8.8.12" />
-				<ref bean="kenyaemr.tb.report.new.smear.negative.ptb.2.8.12.15" />
-				<!--<ref bean="kenyaemr.tb.report.eptb.2.8.8.12" />-->
-				<!--<ref bean="kenyaemr.tb.report.eptb.2.8.12.15" />-->
+				<!--<ref bean="kenyaemr.tb.report.smear.not.done.ptb.2.8.8.12" />
+				<ref bean="kenyaemr.tb.report.new.smear.negative.ptb.2.8.12.15" />-->
 				<ref bean="kenyaemr.tb.report.inProgram" />
 				<ref bean="kenyaemr.tb.report.needsSputumTest" />
 				<ref bean="kenyaemr.tb.report.missingSputumResults" />
+				<ref bean="kenyaemr.tb.report.tbSuspects" />
+				<ref bean="kenyaemr.tb.report.in.tb.program.missing.pyridoxine" />
+				<ref bean="kenyaemr.tb.report.in.tb.diary" />
 			</set>
 		</property>
 		<property name="fragments">
@@ -95,7 +107,7 @@
 		<property name="targetUuid" value="ed001a42-8462-49d3-8e9d-5c7bedc1806d" />
 		<property name="name" value="Patients in TB program" />
 		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.tb.InTbProgramCalculation" />
-		<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />
+		<!--<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />-->
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
 
@@ -103,7 +115,7 @@
 		<property name="targetUuid" value="316c9d65-fbce-402e-8e89-b5f7e78276cb" />
 		<property name="name" value="Patients due for TB sputum test" />
 		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.tb.NeedsTbSputumTestCalculation" />
-		<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />
+		<!--<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />-->
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
 
@@ -111,7 +123,15 @@
 		<property name="targetUuid" value="c38e0866-b24b-43e0-aa21-e21638742e63" />
 		<property name="name" value="Patients with missing TB sputum results" />
 		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.tb.MissingTbSputumResultsCalculation" />
-		<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />
+		<!--<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />-->
+		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
+	</bean>
+
+	<bean id="kenyaemr.tb.report.tbSuspects" class="org.openmrs.module.kenyacore.report.CalculationReportDescriptor">
+		<property name="targetUuid" value="e90215ec-21cf-49fa-b4e7-39dde8d3d416" />
+		<property name="name" value="TB Suspects not in TB Program" />
+		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.tb.TbSuspectCalculation" />
+		<!--<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" />-->
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
 
@@ -123,14 +143,6 @@
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
 
-	<bean id="kenyaemr.tb.report.eptb.2.8.8.12" class="org.openmrs.module.kenyacore.report.IndicatorReportDescriptor">
-		<property name="targetUuid" value="18516056-1e27-11e4-af0b-3f84842084cc" />
-		<property name="name" value="Extra - Pulmonary TB" />
-		<property name="description" value="Cohort Report on Results of Treatment of Extra PTB Patient of Registered - Results at 2 and 8 Months (Registered 8-12 months Earlier)" />
-		<property name="template" value="kenyaemr:tb/eptb2and8months812monthsearlier.xls" />
-		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
-	</bean>
-
 	<bean id="kenyaemr.tb.report.new.smear.negative.ptb.2.8.12.15" class="org.openmrs.module.kenyacore.report.IndicatorReportDescriptor">
 		<property name="targetUuid" value="fd4b2c88-214b-11e4-878d-135d55706f1d" />
 		<property name="name" value="New Smear Negative - PTB and Extra PTB" />
@@ -138,12 +150,21 @@
 		<property name="template" value="kenyaemr:tb/ptbnewsptumsmearnegative2and8.xls" />
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
-
-	<bean id="kenyaemr.tb.report.eptb.2.8.12.15" class="org.openmrs.module.kenyacore.report.IndicatorReportDescriptor">
-		<property name="targetUuid" value="2c2a7166-214d-11e4-97a5-cb28b4f7f515" />
-		<property name="name" value="Extra - Pulmonary TB" />
-		<property name="description" value="Cohort Report on Results of Treatment of Extra PTB Patient of Registered - Results at 2 and 8 Months (Registered 12-15 months Earlier)" />
-		<property name="template" value="kenyaemr:tb/eptb2and8months1215monthsearlier.xls" />
+	
+	<bean id="kenyaemr.tb.report.in.tb.program.missing.pyridoxine" class="org.openmrs.module.kenyacore.report.CalculationReportDescriptor">
+		<property name="targetUuid" value="56ce37f1-094a-40e7-9abf-ee9c78e5ae7e" />
+		<property name="name" value="Patients on TB Treatment missing pyridoxine dose" />
+		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.ipt.NotOnIptNotInTbProgramCalculation" />
+<!-- 		<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" /> -->
 		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
 	</bean>
+	
+	<bean id="kenyaemr.tb.report.in.tb.diary" class="org.openmrs.module.kenyacore.report.CalculationReportDescriptor">
+		<property name="targetUuid" value="4ec2dca2-58a2-478c-a71e-98053447b368" />
+		<property name="name" value="TB Patients Diary - Expected Visits" />
+		<property name="calculation" value="org.openmrs.module.kenyaemr.calculation.library.tb.ScheduledVisitOnDayCalculation" />
+<!-- 		<property name="displayIdentifier" ref="kenyaemr.tb.identifier.districtRegistration" /> -->
+		<property name="apps"><set><ref bean="kenyaemr.app.reports" /></set></property>
+	</bean>
+
 </beans>

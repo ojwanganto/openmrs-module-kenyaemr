@@ -1,17 +1,12 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.reporting.library.shared.hiv.art;
 
 import org.openmrs.Concept;
@@ -22,6 +17,7 @@ import org.openmrs.module.kenyacore.report.cohort.definition.DateCalculationCoho
 import org.openmrs.module.kenyaemr.calculation.library.MissedLastAppointmentCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.LostToFollowUpCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.EligibleForArtCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.art.EligibleForArtExclusiveCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.InitialArtStartDateCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.OnAlternateFirstLineArtCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.OnArtCalculation;
@@ -29,15 +25,19 @@ import org.openmrs.module.kenyaemr.calculation.library.hiv.art.OnOriginalFirstLi
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.OnSecondLineArtCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.PregnantAtArtStartCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.TbPatientAtArtStartCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.art.TransferredInAfterArtStartCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.art.WhoStageAtArtStartCalculation;
 import org.openmrs.module.kenyaemr.metadata.HivMetadata;
 import org.openmrs.module.kenyaemr.regimen.RegimenManager;
 import org.openmrs.module.kenyaemr.reporting.cohort.definition.RegimenOrderCohortDefinition;
 import org.openmrs.module.kenyaemr.reporting.library.shared.common.CommonCohortLibrary;
 import org.openmrs.module.kenyaemr.reporting.library.shared.hiv.HivCohortLibrary;
+import org.openmrs.module.kenyaemr.reporting.library.shared.hiv.QiCohortLibrary;
+import org.openmrs.module.kenyaemr.reporting.library.shared.hiv.QiPaedsCohortLibrary;
 import org.openmrs.module.metadatadeploy.MetadataUtils;
 import org.openmrs.module.reporting.cohort.definition.CohortDefinition;
 import org.openmrs.module.reporting.cohort.definition.CompositionCohortDefinition;
+import org.openmrs.module.reporting.cohort.definition.SqlCohortDefinition;
 import org.openmrs.module.reporting.evaluation.parameter.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -62,6 +62,12 @@ public class ArtCohortLibrary {
 	@Autowired
 	private HivCohortLibrary hivCohortLibrary;
 
+	@Autowired
+	private QiCohortLibrary qiCohortLibrary;
+
+	@Autowired
+	private QiPaedsCohortLibrary qiPaedsCohortLibrary;
+
 	/**
 	 * Patients who are eligible for ART on ${onDate}
 	 * @return the cohort definition
@@ -72,6 +78,13 @@ public class ArtCohortLibrary {
 		eligibleForART.setName("eligible for ART on date");
 		eligibleForART.addParameter(new Parameter("onDate", "On Date", Date.class));
 		return eligibleForART;
+	}
+
+	public CohortDefinition EligibleForArtExclusive() {
+		CalculationCohortDefinition eligibleForARTExclusive = new CalculationCohortDefinition(new EligibleForArtExclusiveCalculation());
+		eligibleForARTExclusive.setName("eligible for ART on date exclusively");
+		eligibleForARTExclusive.addParameter(new Parameter("onDate", "On Date", Date.class));
+		return eligibleForARTExclusive;
 	}
 
 	/**
@@ -198,6 +211,28 @@ public class ArtCohortLibrary {
 	}
 
 	/**
+	 * Patients who are in the "month net cohort" on ${onDate}
+	 * Patients who started art between dates given months
+	 * Used for art cohort analysis
+	 * @return the cohort definition
+	 */
+	public CohortDefinition netCohortMonthsBetweenDatesGivenMonths(Integer period) {
+		CalculationCohortDefinition calc = new CalculationCohortDefinition(new TransferredInAfterArtStartCalculation());
+		calc.setName("Patients who transferred in while started art");
+		calc.addCalculationParameter("outcomePeriod", period);
+		calc.addParameter(new Parameter("onDate", "On Date", Date.class));
+
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.setName("month net cohort on date given months");
+		cd.addParameter(new Parameter("startDate", "Start Date", Date.class));
+		cd.addParameter(new Parameter("endDate", "End Date", Date.class));
+		cd.addSearch("startedArtMonthsAgo", ReportUtils.map(startedArt(), "onOrAfter=${startDate},onOrBefore=${endDate}"));
+		cd.addSearch("transferInWhileOnArt", ReportUtils.map(calc));
+		cd.setCompositionString("startedArtMonthsAgo AND NOT transferInWhileOnArt");
+		return cd;
+	}
+
+	/**
 	 * Patients on the given regimen. In the future this should look at dispensing records during the reporting period
 	 * which implicitly check whether a patient is active. As a workaround until we get to dispensing records, we
 	 * explicitly check whether a patient is active here by looking for recent encounters.
@@ -280,6 +315,68 @@ public class ArtCohortLibrary {
 	}
 
 	/**
+	 * Patients who are eligible and started art during 6 months review period adults
+	 * @return CohortDefinition
+	 */
+	public CohortDefinition eligibleAndStartedARTAdult() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.setName("Eligible and started ART");
+		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+		cd.addSearch("eligible", ReportUtils.map(EligibleForArtExclusive(), "onDate=${onOrBefore}"));
+		cd.addSearch("startART", ReportUtils.map(startedArt(), "onOrAfter=${onOrBefore-6m},onOrBefore=${onOrBefore}"));
+		cd.addSearch("adult", ReportUtils.map(commonCohorts.agedAtLeast(15), "effectiveDate=${onOrBefore}"));
+		cd.addSearch("deceased", ReportUtils.map(commonCohorts.deceasedPatients(), "onDate=${onOrBefore}"));
+		cd.setCompositionString("eligible AND startART AND adult AND NOT deceased");
+		return  cd;
+	}
+
+	/**
+	 * Intersection of eligibleAndStartedARTAdult and hivInfectedAndNotOnARTAndHasHivClinicalVisit
+	 * @return CohortDefinition
+	 */
+	public CohortDefinition eligibleAndStartedARTAndHivInfectedAndNotOnARTAndHasHivClinicalVisit() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+		cd.addSearch("eligibleAndStartedART", ReportUtils.map(eligibleAndStartedARTAdult(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("hivInfectedAndNotOnART", ReportUtils.map(qiCohortLibrary.hivInfectedAndNotOnARTAndHasHivClinicalVisit(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("deceased", ReportUtils.map(commonCohorts.deceasedPatients(), "onDate=${onOrBefore}"));
+		cd.setCompositionString("eligibleAndStartedART AND hivInfectedAndNotOnART AND NOT deceased");
+		return cd;
+	}
+
+	/**
+	 * Patients who are eligible and started art during 6 months review period children
+	 * @return CohortDefinition
+	 */
+	public CohortDefinition eligibleAndStartedARTPeds() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.setName("Eligible and started ART");
+		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+		cd.addSearch("eligible", ReportUtils.map(EligibleForArtExclusive(), "onDate=${onOrBefore}"));
+		cd.addSearch("startART", ReportUtils.map(startedArt(), "onOrAfter=${onOrBefore-6m},onOrBefore=${onOrBefore}"));
+		cd.addSearch("child", ReportUtils.map(commonCohorts.agedAtMost(15), "effectiveDate=${onOrBefore}"));
+		cd.setCompositionString("eligible and startART and child");
+		return  cd;
+	}
+
+	/**
+	 * Intersection of eligibleAndStartedARTPeds and hivInfectedAndNotOnARTAndHasHivClinicalVisit
+	 * @return CohortDefinition
+	 */
+	public CohortDefinition eligibleAndStartedARTPedsAndhivInfectedAndNotOnARTAndHasHivClinicalVisit() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "After Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "Before Date", Date.class));
+		cd.addSearch("eligibleAndStartedARTPeds", ReportUtils.map(eligibleAndStartedARTPeds(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("hivInfectedAndNotOnARTAndHasHivClinicalVisit", ReportUtils.map(qiPaedsCohortLibrary.hivInfectedAndNotOnARTAndHasHivClinicalVisit(),  "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("eligibleAndStartedARTPeds AND hivInfectedAndNotOnARTAndHasHivClinicalVisit");
+		return cd;
+	}
+
+	/**
 	 * Patients who started ART on ${onOrBefore} excluding transfer ins
 	 * @return the cohort definition
 	 */
@@ -335,6 +432,45 @@ public class ArtCohortLibrary {
 		cd.addSearch("startedArt", ReportUtils.map(startedArt(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
 		cd.addSearch("withWhoStage", ReportUtils.map(whoStageAtArtStart(stage)));
 		cd.setCompositionString("startedArt AND withWhoStage");
+		return cd;
+	}
+
+	public  CohortDefinition patientsOnRegimen(String regimenName) {
+		String sqlQuery="SELECT d.patient_id\n" +
+		"from kenyaemr_etl.etl_drug_event d\n" +
+				"  inner join (\n" +
+				"select fup.visit_date,fup.patient_id, min(e.visit_date) as enroll_date,\n" +
+				"    max(fup.visit_date) as latest_vis_date,\n" +
+				"    mid(max(concat(fup.visit_date,fup.next_appointment_date)),11) as latest_tca,\n" +
+				"    max(d.visit_date) as date_discontinued,\n" +
+				"    d.patient_id as disc_patient,\n" +
+				"  de.patient_id as started_on_drugs,\n" +
+				"  de.program as hiv_program\n" +
+				"from kenyaemr_etl.etl_patient_hiv_followup fup\n" +
+				"join kenyaemr_etl.etl_patient_demographics p on p.patient_id=fup.patient_id\n" +
+				"join kenyaemr_etl.etl_hiv_enrollment e on fup.patient_id=e.patient_id\n" +
+				"left outer join kenyaemr_etl.etl_drug_event de on e.patient_id = de.patient_id and date(date_started) <= date(:endDate)\n" +
+				"left outer JOIN\n" +
+				"(select patient_id, visit_date from kenyaemr_etl.etl_patient_program_discontinuation\n" +
+				"where date(visit_date) <= date(:endDate) and program_name='HIV'\n" +
+				"group by patient_id\n" +
+				") d on d.patient_id = fup.patient_id\n" +
+				"where de.program = 'HIV' and fup.visit_date <= date(:endDate)\n" +
+				"group by patient_id\n" +
+				"having (started_on_drugs is not null and started_on_drugs <> \"\") and (\n" +
+				"(date(latest_tca) > date(:endDate) and (date(latest_tca) > date(date_discontinued) or disc_patient is null )) or\n" +
+				"(((date(latest_tca) between date(:startDate) and date(:endDate)) and (date(latest_vis_date) >= date(latest_tca)) or date(latest_tca) > curdate()) ) and (date(latest_tca) > date(date_discontinued) or disc_patient is null ))\n" +
+				"    ) onArt on d.patient_id=onArt.patient_id\n" +
+				" where d.program=\"HIV\" and (d.voided is null or d.voided=0) and d.regimen_name=':regimenName'\n" +
+				"      and d.date_started <= date(:endDate) and (d.date_discontinued is null or d.date_discontinued > date(:endDate));  ";
+
+		sqlQuery = sqlQuery.replaceAll(":regimenName", regimenName);
+		SqlCohortDefinition cd = new SqlCohortDefinition();
+		cd.setName("patientsOnRegimen");
+		cd.setQuery(sqlQuery);
+		cd.addParameter(new Parameter("startDate", "Start Date", Date.class));
+		cd.addParameter(new Parameter("endDate", "End Date", Date.class));
+		cd.setDescription("Patients on a particular Regimen");
 		return cd;
 	}
 }

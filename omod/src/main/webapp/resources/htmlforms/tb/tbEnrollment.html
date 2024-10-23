@@ -190,7 +190,7 @@
 			</tr>
 			<tr id="topMost">
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Clinic and Encounter Details</legend>
 						<table border="0" class="tb1" width="100%">
 							<tr>
@@ -206,17 +206,17 @@
 								<td><obs conceptId="161564AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" size="30" /></td>
 							</tr>
 							<tr>
-								<td>District Reg Number*</td>
+								<td>District Reg Number</td>
 								<td><patient field="identifier" identifierTypeId="d8ee3b8c-a8fc-4d6b-af6a-9423be5f8906" required="false"/></td>
 							</tr>
 							<tr>
 								<td colspan="2"><div id="startOfTreatmentDateError" class="error"></div></td>
 							</tr>
 						</table>
-					</fielset>
+					</fieldset>
 				</td>
 				<td valign="top">
-				<fielset>
+				<fieldset>
 					<legend>Patient Referral Information</legend>
 						<table class="tb1" width="100%">
 							<tr>
@@ -230,8 +230,29 @@
 								<td>
 									<div id="referredByOptions">
 										<obs conceptId="160540AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-											answerConceptIds="160539AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160631AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160546AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,161359AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160538AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1725AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1744AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,160551AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,1555AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-											answerLabels="VCT center,HIV care clinic,STI Clinic,Home Based Care,Antenatal/PMTCT Clinic,Private Sector,Chemist/pharmacist,Self referral,Community Health worker(CHW)" style="radio"  answerSeparator="&lt;br /&gt;" />
+											answerConceptIds="160539AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															160631AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															160546AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															161359AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															160538AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															1725AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															1744AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															160551AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															1555AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															162050AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+															164103AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+											answerLabels="VCT center,
+														HIV care clinic,
+														STI Clinic,
+														Home Based Care,
+														Antenatal/PMTCT Clinic,
+														Private Sector,
+														Chemist/pharmacist,
+														Self referral,
+														Community Health worker(CHW),
+														CCC,
+														Diabetes Clinic" 
+											style="radio"  answerSeparator="&lt;br /&gt;" />
 									</div>
 								</td>
 							</tr>
@@ -239,12 +260,12 @@
 								<td colspan="2"><div id="referalDateError" class="error"></div></td>
 							</tr>
 						</table>
-					</fielset>
+					</fieldset>
 				</td>
 			</tr>
 			<tr>
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Patient Information (Edit Address using the Registration screen)</legend>
 							<table id="patientAddress" class="tb1" border="0" width="100%">
 								<tr>
@@ -268,10 +289,10 @@
 									<td><obs id="height" conceptId="5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" labelText=" "/></td>
 								</tr>
 							</table>
-						</fielset>
+						</fieldset>
 					</td>
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Treatment Supported Information</legend>
 							<table width="100%" class="tb1" id="treatmentSupporter">
 								<tr>
@@ -296,12 +317,12 @@
 									</td>
 								</tr>
 							</table>
-					</fielset>
+					</fieldset>
 				</td>
 			</tr>
 			<tr>
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Disease Classification</legend>
 							<table class="tb1" border="0" width="100%">
 								<tr>
@@ -375,27 +396,42 @@
 								</td>
 							</tr>
 						</table>
-					</fielset>
+					</fieldset>
 				</td>
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Patient Classification</legend>
 							<table class="tb1" border="0" width="100%">
 								<tr>
 									<td>
-										<obs conceptId="159871AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" answerConceptIds="159878AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,159877AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,159876AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,159874AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,159873AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,159872AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" style="radio"
-										answerLabels="New,Smear positive Relapse,Smear negative Relapse,Failure,Treatment resumed after defaulting,Transfer in" id="patientClassification" answerSeparator="&lt;br /&gt;&lt;br /&gt;" />
+										<obs 
+										conceptId="159871AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" 
+										answerConceptIds="159878AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														159877AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														159876AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														159874AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														159873AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														159872AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,
+														163609AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+										answerLabels="New,
+													Smear positive Relapse,
+													Smear negative Relapse,
+													Treatment after Failure,
+													Treatment resumed after defaulting,
+													Transfer in,
+													Previous treatment history unknown" 
+										 style="radio" id="patientClassification" answerSeparator="&lt;br /&gt;&lt;br /&gt;" />
 									</td>
 								</tr>
 								<tr><td></td></tr>
 								<tr><td></td></tr>
 							</table>
-						</fielset>
+						</fieldset>
 				</td>
 			</tr>
 			<tr>
 				<td valign="top">
-					<fielset>
+					<fieldset>
 						<legend>Transfer In Information (Enter only if patient is a Transfer In)</legend>
 							<table class="tb1" border="0" width="100%" id="transferInDetails">
 								<tr>
@@ -416,7 +452,7 @@
 								</tr>
 								<td colspan="2"><div id="transferInDatesError" class="error"></div></td>
 							</table>
-						</fielset>
+						</fieldset>
 				</td>
 			</tr>
 		</table>

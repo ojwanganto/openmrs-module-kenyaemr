@@ -1,17 +1,12 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.reporting.library.shared.tb;
 
 import org.openmrs.module.reporting.indicator.CohortIndicator;
@@ -36,7 +31,7 @@ public class TbIndicatorLibrary {
 	 */
 	public CohortIndicator screenedForTb() {
 		return cohortIndicator("patients screened for TB",
-				map(tbCohorts.screenedForTb(), "onOrAfter=${startDate},onOrBefore=${endDate}")
+				map(tbCohorts.screenedForTbAndHivPositive(), "onOrAfter=${startDate},onOrBefore=${endDate}")
 		);
 	}
 
@@ -46,7 +41,7 @@ public class TbIndicatorLibrary {
 	 */
 	public CohortIndicator diedAndStarted12MonthsAgo() {
 		return cohortIndicator("patients who started TB treatment 12 months ago and died",
-				map(tbCohorts.diedAndStarted12MonthsAgo(), "onOrAfter=${startDate},onOrBefore=${endDate}")
+				map(tbCohorts.diedAndStarted12MonthsAgo(), "onOrBefore=${endDate}")
 		);
 	}
 
@@ -154,7 +149,7 @@ public class TbIndicatorLibrary {
 	 * @return cohort indicator
 	 */
 	public CohortIndicator totalEnrolled() {
-		return cohortIndicator("Total Enrolled",
+		return cohortIndicator("TB - Total Enrolled",
 				map(tbCohorts.totalEnrolledPtbSmearNotDoneResultsAtMonths(12, 8), "onOrAfter=${startDate},onOrBefore=${endDate}")
 				);
 	}
@@ -164,7 +159,7 @@ public class TbIndicatorLibrary {
 	 * @return Indicator
 	 */
 	public  CohortIndicator finalizedInitialTreatment() {
-		return cohortIndicator("Finalized Initial Treatment",
+		return cohortIndicator("TB - Finalized Initial Treatment",
 				map(tbCohorts.ptbSmearNotDoneResults2MonthsFinalizedInitialtreatment(), "onOrAfter=${startDate},onOrBefore=${endDate}")
 		);
 	}

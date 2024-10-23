@@ -10,14 +10,19 @@
 			var period = jQuery(this).val().split('|');
 			jQuery('#${ config.id }_start').val(period[0]);
 			jQuery('#${ config.id }_end').val(period[1]);
+			jQuery('#date_value').val(period[1]);
 		});
 
 		select.change();
+
 	});
 </script>
 <select id="${ config.id }">
 	<% months.each { month -> %>
 	<option value="${ month.range }">${ month.label }</option>
+	<% } %>
+	<% years.each { year -> %>
+	<option value="${ year.range }">${ year.label }</option>
 	<% } %>
 </select>
 <input id="${ config.id }_start" type="hidden" name="${ startFieldName }" />
@@ -30,3 +35,4 @@
 	// TODO
 </script>
 <% } %>
+<input type="hidden" id="date_value" />

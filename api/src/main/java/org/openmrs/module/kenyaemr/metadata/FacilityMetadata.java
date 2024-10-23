@@ -1,22 +1,21 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.metadata;
 
+import org.apache.commons.lang3.StringUtils;
 import org.openmrs.Location;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.context.Context;
 import org.openmrs.customdatatype.datatype.FreeTextDatatype;
 import org.openmrs.customdatatype.datatype.RegexValidatedTextDatatype;
+import org.openmrs.module.kenyaemr.EmrConstants;
 import org.openmrs.module.kenyaemr.metadata.sync.LocationMflCsvSource;
 import org.openmrs.module.kenyaemr.metadata.sync.LocationMflSynchronization;
 import org.openmrs.module.metadatadeploy.bundle.AbstractMetadataBundle;
@@ -46,6 +45,9 @@ public class FacilityMetadata extends AbstractMetadataBundle {
 		public static final String TELEPHONE_LANDLINE = "4ecb5b3f-1518-4056-a266-c4da1def45f5";
 		public static final String TELEPHONE_MOBILE = "8760f471-b2bb-4ded-8970-badf95d3bb44";
 		public static final String TELEPHONE_FAX = "29e1e758-d03e-4e84-a55e-288fa63d533a";
+		public static final String SHA_ACCREDITATION = "7dbbfe5d-8a5a-4b24-897d-0cc5299c3dbb";
+		public static final String SHA_CONTRACTED_FACILITY = "68d9200e-a469-482f-8cc8-9d0953a3c917";
+		public static final String SHA_FACILITY_EXPIRY_DATE = "8e1ec5d4-4810-466a-9c90-b801bae9d063";
 	}
 
 	/**
@@ -53,7 +55,32 @@ public class FacilityMetadata extends AbstractMetadataBundle {
 	 */
 	@Override
 	public void install() throws Exception {
-		install(true);
+		AdministrationService administrationService = Context.getAdministrationService();
+		final String refreshConfig = (administrationService.getGlobalProperty(EmrConstants.GP_CONFIGURE_FACILITY_LIST_REFRESH_ON_STARTUP));
+
+		if (StringUtils.isNotEmpty(refreshConfig) && refreshConfig.equalsIgnoreCase("true")) {
+			install(true);
+		} else {
+			System.out.println("Skipping refreshing of the facility list ...");
+		}
+		install(locationAttributeType(
+				"SHA Facility Operational Status", "SHA accredited verification status",
+				FreeTextDatatype.class, "", 0, 1,
+				_LocationAttributeType.SHA_ACCREDITATION
+		));
+
+		install(locationAttributeType(
+				"Contracted by SHA", "Facility contracted by SHA",
+				FreeTextDatatype.class, "", 0, 1,
+				_LocationAttributeType.SHA_CONTRACTED_FACILITY
+		));
+
+		install(locationAttributeType(
+				"Facility Expiry Date", "Expiry date for SHA contracted Facility",
+				FreeTextDatatype.class, "", 0, 1,
+				_LocationAttributeType.SHA_FACILITY_EXPIRY_DATE
+		));
+
 	}
 
 	/**

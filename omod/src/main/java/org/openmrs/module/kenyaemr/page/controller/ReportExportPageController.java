@@ -1,27 +1,24 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.page.controller;
 
 import org.apache.commons.io.FileUtils;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.kenyacore.CoreUtils;
 import org.openmrs.module.kenyacore.UiResource;
+import org.openmrs.module.kenyacore.report.HybridReportDescriptor;
 import org.openmrs.module.kenyacore.report.IndicatorReportDescriptor;
 import org.openmrs.module.kenyacore.report.ReportDescriptor;
 import org.openmrs.module.kenyacore.report.ReportManager;
 import org.openmrs.module.kenyaemr.api.KenyaEmrService;
+import org.openmrs.module.kenyaemr.reporting.renderer.AdxReportRenderer;
 import org.openmrs.module.kenyaemr.reporting.renderer.MergedCsvReportRenderer;
 import org.openmrs.module.kenyaemr.wrapper.Facility;
 import org.openmrs.module.kenyaui.KenyaUiUtils;
@@ -50,6 +47,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.Properties;
 
 /**
  * Download report data as Excel or CSV
@@ -59,6 +57,7 @@ public class ReportExportPageController {
 
 	private static final String EXPORT_TYPE_EXCEL = "excel";
 	private static final String EXPORT_TYPE_CSV = "csv";
+	private static final String EXPORT_TYPE_ADX = "adx";
 
 	/**
 	 * Exports report data as the given type
@@ -84,6 +83,9 @@ public class ReportExportPageController {
 		else if (EXPORT_TYPE_CSV.equals(type)) {
 			return renderAsCsv(report, reportData);
 		}
+		else if (EXPORT_TYPE_ADX.equals(type)) {
+			return renderAsAdx(report, reportData);
+		}
 		else {
 			throw new RuntimeException("Unrecognised export type: " + type);
 		}
@@ -100,12 +102,13 @@ public class ReportExportPageController {
 										 ReportData data,
 										 ResourceFactory resourceFactory) throws IOException {
 
-		if (!(report instanceof IndicatorReportDescriptor)) {
-			throw new RuntimeException("Only indicator reports can be rendered as Excel");
+
+		if (!(report instanceof IndicatorReportDescriptor) && !(report instanceof HybridReportDescriptor)) {
+			throw new RuntimeException("Only indicator/hybrid reports can be rendered as Excel");
 		}
 
 		ReportDefinition definition = report.getTarget();
-		UiResource template = ((IndicatorReportDescriptor) report).getTemplate();
+		UiResource template = (report instanceof IndicatorReportDescriptor) ? ((IndicatorReportDescriptor) report).getTemplate() : ((HybridReportDescriptor) report).getTemplate();
 
 		if (template == null || !template.getPath().endsWith(".xls")) {
 			throw new RuntimeException("Report doesn't specify a Excel template");
@@ -126,6 +129,16 @@ public class ReportExportPageController {
 			design.setName(report.getName());
 			design.setReportDefinition(definition);
 			design.setRendererType(ExcelTemplateRenderer.class);
+
+			if (report instanceof HybridReportDescriptor){
+				Properties props = new Properties();
+				String repeatingSections = ((HybridReportDescriptor) report).getRepeatingSection();
+				if (repeatingSections != null){
+					props.put("repeatingSections", repeatingSections);
+					design.setProperties(props);
+				}
+			}
+
 			design.addResource(resource);
 
 			renderer = new ExcelTemplateRenderer() {
@@ -135,7 +148,7 @@ public class ReportExportPageController {
 			};
 		}
 
-		addExtraContextValues(data.getContext());
+		addExtraContextValues(data, data.getContext());
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		renderer.render(data, null, out);
@@ -151,19 +164,56 @@ public class ReportExportPageController {
 	 * Adds some extra context values which can be used in Excel templates
 	 * @param context the evaluation context
 	 */
-	protected void addExtraContextValues(EvaluationContext context) {
+	protected void addExtraContextValues(ReportData data, EvaluationContext context) {
 		Facility facility = new Facility(Context.getService(KenyaEmrService.class).getDefaultLocation());
+		KenyaUiUtils kenyaui = Context.getRegisteredComponents(KenyaUiUtils.class).get(0);
+		ReportDefinition reportData = data.getDefinition();
 
 		context.addContextValue("facility.name", facility.getTarget().getName());
 		context.addContextValue("facility.code", facility.getMflCode());
+		context.addContextValue("report.name", reportData.getName());
+		context.addContextValue("facility.county", facility.getCounty());
+		context.addContextValue("facility.subCounty", facility.getDistrict());
 
 		Calendar period = new GregorianCalendar();
 		period.setTime(context.containsParameter("startDate") ? (Date) context.getParameterValue("startDate") : context.getEvaluationDate());
 
+		String evaluationDate = kenyaui.formatDate(context.getEvaluationDate());
+		String evaluationTime = kenyaui.formatTime(context.getEvaluationDate());
+
+		context.addContextValue("evaluationDate", evaluationDate);
+		context.addContextValue("evaluationTime", evaluationTime);
 		context.addContextValue("period.year", period.get(Calendar.YEAR));
 		context.addContextValue("period.month", period.get(Calendar.MONTH));
 		context.addContextValue("period.month.name", new SimpleDateFormat("MMMMM").format(period.getTime()));
+
+
+		//calculate the time frame for art cohort analysis reports
+		String reportName = reportData.getName();
+		//get the number out of that name
+		int reportPeriod  = 0;
+		if (reportName.matches(".*\\d+.*")) {
+			reportPeriod = Integer.parseInt(reportName.replaceAll("\\D+",""));
+		}
+
+		//calculate date from the report period
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(period.getTime());
+		calendar.add(Calendar.MONTH, reportPeriod);
+
+		//put the date in a variable
+		String reportEndDatePeriod = kenyaui.formatDate(calendar.getTime());
+		String reportStartDatePeriod = kenyaui.formatDate(period.getTime());
+
+		//add this value to the context
+		context.addContextValue("period.report.month",reportPeriod);
+		context.addContextValue("period.month.name.short", new SimpleDateFormat("MMM").format(period.getTime()));
+		context.addContextValue("period.day", period.get(Calendar.DATE));
+		context.addContextValue("period.endDate", reportEndDatePeriod);
+		context.addContextValue("period.startDate", reportStartDatePeriod);
+
 	}
+
 
 	/**
 	 * Renders an indicator report as CSV
@@ -179,6 +229,15 @@ public class ReportExportPageController {
 		renderer.render(data, null, out);
 
 		return new FileDownload(getDownloadFilename(report.getTarget(), data.getContext(), "csv"), ContentType.CSV.getContentType(), out.toByteArray());
+	}
+
+	protected FileDownload renderAsAdx(ReportDescriptor report, ReportData data) throws IOException {
+		ReportRenderer renderer = new AdxReportRenderer();
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		renderer.render(data, null, out);
+
+		return new FileDownload(getDownloadFilename(report.getTarget(), data.getContext(), "xml"), ContentType.XML.getContentType(), out.toByteArray());
 	}
 
 	/**
@@ -201,7 +260,7 @@ public class ReportExportPageController {
 	public String getDownloadFilename(ReportDefinition definition, EvaluationContext ec, String extension) {
 		Date date = ec.containsParameter("startDate") ? (Date) ec.getParameterValue("startDate") : ec.getEvaluationDate();
 
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM");
-		return definition.getName() + " " + df.format(date) + "." + extension;
+		SimpleDateFormat df = new SimpleDateFormat("MMM-yyyy");
+		return definition.getName() + "_" + df.format(date) + "." + extension;
 	}
 }

@@ -1,19 +1,18 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
 package org.openmrs.module.kenyaemr.calculation.library.hiv.art;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.openmrs.Concept;
+import org.openmrs.Obs;
 import org.openmrs.calculation.patient.PatientCalculationContext;
 import org.openmrs.calculation.result.CalculationResultMap;
 import org.openmrs.calculation.result.SimpleResult;
@@ -35,20 +34,34 @@ public class TransferOutDateCalculation extends AbstractPatientCalculation {
 	 * @see org.openmrs.calculation.patient.PatientCalculation#evaluate(java.util.Collection,
 	 *      java.util.Map, org.openmrs.calculation.patient.PatientCalculationContext)
 	 */
+	protected static final Log log = LogFactory.getLog(TransferOutDateCalculation.class);
 	@Override
 	public CalculationResultMap evaluate(Collection<Integer> cohort, Map<String, Object> parameterValues,
 										 PatientCalculationContext context) {
 
 		Concept transferOutDate = Dictionary.getConcept(Dictionary.DATE_TRANSFERRED_OUT);
-		CalculationResultMap transferInDateResults = Calculations.lastObs(transferOutDate, cohort, context);
+		Concept discontinueQuestion = Dictionary.getConcept(Dictionary.REASON_FOR_PROGRAM_DISCONTINUATION);
+		Concept transferOut = Dictionary.getConcept(Dictionary.TRANSFERRED_OUT);
+		CalculationResultMap transferOutDateResults = Calculations.lastObs(transferOutDate, cohort, context);
+		CalculationResultMap discontinueObs = Calculations.lastObs(discontinueQuestion, cohort, context);
 
 		CalculationResultMap result = new CalculationResultMap();
 		for(int ptId : cohort){
 
-			Date tDate = EmrCalculationUtils.datetimeObsResultForPatient(transferInDateResults, ptId);
+			Date tDate = EmrCalculationUtils.datetimeObsResultForPatient(transferOutDateResults, ptId);
+			Obs discoReason = EmrCalculationUtils.obsResultForPatient(discontinueObs, ptId);
+			Date dateTo = null;
+			if(tDate != null){
+				dateTo = tDate;
+			}
+			if(dateTo == null && discoReason != null && discoReason.getValueCoded().equals(transferOut)) {
+				dateTo = discoReason.getObsDatetime();
+			}
 
-			result.put(ptId, tDate == null ? null : new SimpleResult(tDate, null));
+			result.put(ptId, new SimpleResult(dateTo, this));
+			//log.info("Transfer out ==>"+dateTo);
 		}
+
 		return  result;
 	}
 }

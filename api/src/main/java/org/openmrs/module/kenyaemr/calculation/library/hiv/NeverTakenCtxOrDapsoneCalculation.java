@@ -1,35 +1,34 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.calculation.library.hiv;
 
 import org.openmrs.Concept;
+import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Program;
 import org.openmrs.calculation.patient.PatientCalculationContext;
 import org.openmrs.calculation.result.CalculationResultMap;
 import org.openmrs.calculation.result.ListResult;
 import org.openmrs.module.kenyacore.calculation.AbstractPatientCalculation;
+import org.openmrs.module.kenyacore.calculation.BooleanResult;
 import org.openmrs.module.kenyacore.calculation.CalculationUtils;
 import org.openmrs.module.kenyacore.calculation.Calculations;
 import org.openmrs.module.kenyacore.calculation.Filters;
 import org.openmrs.module.kenyaemr.Dictionary;
-import org.openmrs.module.kenyacore.calculation.BooleanResult;
 import org.openmrs.module.kenyaemr.metadata.HivMetadata;
 import org.openmrs.module.metadatadeploy.MetadataUtils;
+import org.openmrs.module.reporting.common.DateUtil;
+import org.openmrs.module.reporting.common.DurationUnit;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,6 +53,14 @@ public class NeverTakenCtxOrDapsoneCalculation extends AbstractPatientCalculatio
 
 		Set<Integer> ltfu = CalculationUtils.patientsThatPass(calculate(new LostToFollowUpCalculation(), cohort, context));
 
+		//calculate those patients who are in care
+		//patient who have heard an encounter in the last 3 months
+		Date endOfReportingPeriod = DateUtil.getEndOfMonth(DateUtil.adjustDate(DateUtil.getStartOfMonth(context.getNow()), -1, DurationUnit.DAYS));
+		Date startOfReportingPeriod = DateUtil.adjustDate(DateUtil.adjustDate(endOfReportingPeriod, -3, DurationUnit.MONTHS), -1, DurationUnit.DAYS);
+		//context.setNow(endOfReportingPeriod);
+		CalculationResultMap activePatients = Calculations.allEncounters(null, cohort, context);
+
+
 		// Get concepts...
 		Concept yes = Dictionary.getConcept(Dictionary.YES);
 		Concept dapsone = Dictionary.getConcept(Dictionary.DAPSONE);
@@ -62,9 +69,19 @@ public class NeverTakenCtxOrDapsoneCalculation extends AbstractPatientCalculatio
 		CalculationResultMap ret = new CalculationResultMap();
 		for (Integer ptId : cohort) {
 			boolean neverTakenCtxOrDapsone = false;
+			boolean isActive = false;
+			ListResult listResult = (ListResult) activePatients.get(ptId);
+			List<Encounter> allEncounters = CalculationUtils.extractResultValues(listResult);
+			for(Encounter encounter : allEncounters) {
+				if(encounter.getEncounterDatetime().after(startOfReportingPeriod)) {
+					isActive = true;
+					break;
+				}
+			}
+
 
 			// Is patient alive and in the HIV program
-			if (inHivProgram.contains(ptId)) {
+			if (inHivProgram.contains(ptId) && isActive) {
 				neverTakenCtxOrDapsone = true;
 
 				// First look to see if they have an obs for taking as prophylaxis

@@ -1,35 +1,36 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.reporting.library.shared.mchcs;
 
 
 import org.openmrs.Concept;
+import org.openmrs.EncounterType;
 import org.openmrs.module.kenyacore.report.ReportUtils;
 import org.openmrs.module.kenyacore.report.cohort.definition.CalculationCohortDefinition;
 import org.openmrs.module.kenyaemr.Dictionary;
 import org.openmrs.module.kenyaemr.calculation.library.hiv.NeverTakenCtxOrDapsoneCalculation;
+import org.openmrs.module.kenyaemr.metadata.MchMetadata;
 import org.openmrs.module.kenyaemr.reporting.library.shared.common.CommonCohortLibrary;
 import org.openmrs.module.kenyaemr.reporting.library.shared.hiv.HivCohortLibrary;
+import org.openmrs.module.metadatadeploy.MetadataUtils;
 import org.openmrs.module.reporting.cohort.definition.AgeCohortDefinition;
+import org.openmrs.module.reporting.cohort.definition.BaseObsCohortDefinition;
 import org.openmrs.module.reporting.cohort.definition.CohortDefinition;
 import org.openmrs.module.reporting.cohort.definition.CompositionCohortDefinition;
+import org.openmrs.module.reporting.cohort.definition.DateObsCohortDefinition;
 import org.openmrs.module.reporting.common.DurationUnit;
 import org.openmrs.module.reporting.evaluation.parameter.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Date;
 
 /**
@@ -460,6 +461,32 @@ public class MchcsCohortLibrary {
 		cd.addSearch("hivExposedInfantsEligibleForCTX",ReportUtils.map(hivCohortLibrary.onCtxProphylaxis(),"onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
 		cd.setCompositionString("hivExposedInfantsWithin2Months AND hivExposedInfantsEligibleForCTX");
 		return cd;
+	}
+	
+	/**
+	 * Total number of scheduled visits in the CWC between ${onOrAfter} and ${onOrBefore}
+	 * @return the cohort definition
+	 */
+	public CohortDefinition scheduledVisitsInCWC() {		
+		Concept tca = Dictionary.getConcept(Dictionary.RETURN_VISIT_DATE); 
+		
+		DateObsCohortDefinition scheduledVisits = new DateObsCohortDefinition();		
+
+		ArrayList<EncounterType> cwcEncounterTypes = new ArrayList<EncounterType>();
+		
+		cwcEncounterTypes.add(MetadataUtils.existing(EncounterType.class, MchMetadata._EncounterType.MCHCS_ENROLLMENT));
+		cwcEncounterTypes.add(MetadataUtils.existing(EncounterType.class, MchMetadata._EncounterType.MCHMS_CONSULTATION));
+		cwcEncounterTypes.add(MetadataUtils.existing(EncounterType.class, MchMetadata._EncounterType.MCHCS_IMMUNIZATION));
+
+		scheduledVisits.setName("scheduled visits in CWC");
+		scheduledVisits.addParameter(new Parameter("onOrAfter", "After date", Date.class));
+		scheduledVisits.addParameter(new Parameter("onOrBefore", "Before date", Date.class));
+		scheduledVisits.setTimeModifier(BaseObsCohortDefinition.TimeModifier.ANY);
+		scheduledVisits.setEncounterTypeList(cwcEncounterTypes);
+		scheduledVisits.setQuestion(tca);		
+		
+		return scheduledVisits;
+
 	}
 }
 

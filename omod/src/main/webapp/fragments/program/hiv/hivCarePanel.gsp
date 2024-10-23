@@ -1,14 +1,16 @@
 <%
 	ui.decorateWith("kenyaui", "panel", [ heading: "HIV Care" ])
+	def currentRegimen = lastEnc && lastEnc.regimenShortDisplay ? lastEnc.regimenShortDisplay : ui.message("general.none")
+	def dateLabel = lastEnc && lastEnc.startDate && !lastEnc.endDate ? "Started" : "Stopped"
 
 	def dataPoints = []
 
 	if (config.complete) {
-		def initialArtStartDate = calculations.initialArtStartDate ? calculations.initialArtStartDate.value : null
-		if (initialArtStartDate) {
-			def regimen = calculations.initialArtRegimen ? kenyaEmrUi.formatRegimenLong(calculations.initialArtRegimen.value, ui) : null
 
-			dataPoints << [ label: "ART start date", value: initialArtStartDate, showDateInterval: true ]
+		def regimen = firstEnc && firstEnc.regimenShortDisplay ? firstEnc.regimenShortDisplay : ui.message("general.none")
+		if (firstEnc && firstEnc.startDate) {
+
+			dataPoints << [ label: "ART start date", value: firstEnc.startDate, showDateInterval: true ]
 			dataPoints << [ label: "Initial ART regimen", value: regimen ]
 		} else {
 			dataPoints << [ label: "ART start date", value: "Never" ]
@@ -22,7 +24,7 @@
 	}
 
 	if (calculations.lastCD4Count) {
-		dataPoints << [ label: "Last CD4 count", value: ui.format(calculations.lastCD4Count.value) + " cells/&micro;L", extra: calculations.lastCD4Count.value.obsDatetime ]
+		dataPoints << [ label: "Last CD4 count", value: ui.format(calculations.lastCD4Count.value) + "", extra: calculations.lastCD4Count.value.obsDatetime ]
 	} else {
 		dataPoints << [ label: "Last CD4 count", value: "None" ]
 	}
@@ -32,6 +34,9 @@
 	}
 	else {
 		dataPoints << [ label: "Last CD4 percentage", value: "None" ]
+	}
+	if (calculations.lastViralLoad) {
+		dataPoints << [ label: "Last Viral Load", value: value, extra: date ]
 	}
 %>
 
@@ -45,6 +50,9 @@
 			<td width="50%" valign="top">
 				${ ui.includeFragment("kenyaui", "widget/obsHistoryGraph", [ id: "cd4graph", patient: currentPatient, concepts: graphingConcepts, showUnits: true, style: "height: 300px" ]) }
 			</td>
+		</tr>
+		<tr>
+			<td colspan="2"><strong>Note:*</strong> LDL default value:  ${ldl_default_value}</td>
 		</tr>
 	</table>
 </div>
@@ -60,14 +68,19 @@
 	<% } %>
 
 	<%
-		if (regimenHistory.lastChange) {
-			def lastChange = regimenHistory.lastChangeBeforeNow
-			def regimen = lastChange.started ? kenyaEmrUi.formatRegimenLong(lastChange.started, ui) : ui.message("general.none")
-			def dateLabel = lastChange.started ? "Started" : "Stopped"
+		if (lastEnc && !lastEnc.endDate) {
+			def lastChange = lastEnc
 	%>
-	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: "Regimen", value: regimen ]) }
-	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: dateLabel, value: lastChange.date, showDateInterval: true ]) }
+	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: "Regimen", value: currentRegimen ]) }
+	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: dateLabel, value: lastEnc.startDate, showDateInterval: true ]) }
+	<% } else if(lastEnc && lastEnc.endDate) { %>
+	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: "Regimen", value: currentRegimen ]) }
+	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: dateLabel, value: lastEnc.endDate, showDateInterval: true ]) }
+
 	<% } else { %>
 	${ ui.includeFragment("kenyaui", "widget/dataPoint", [ label: "Regimen", value: ui.message("kenyaemr.neverOnARVs") ]) }
+
 	<% } %>
+	${ui.includeFragment("kenyaemr", "program/hiv/appointmentsHistory", [ patient: currentPatient]) }
+
 </div>

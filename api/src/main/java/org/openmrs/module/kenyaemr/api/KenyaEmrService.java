@@ -1,34 +1,32 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.api;
-
-import java.util.Date;
-import java.util.List;
 
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.Visit;
+import org.openmrs.annotation.Authorized;
 import org.openmrs.api.OpenmrsService;
+import org.openmrs.module.webservices.rest.SimpleObject;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Business logic methods for KenyaEMR
  */
 @Transactional
 public interface KenyaEmrService extends OpenmrsService {
-	
+
 	/**
 	 * Get if this server has been properly configured
 	 * @return whether or not all required settings in the application are configured.
@@ -37,7 +35,7 @@ public interface KenyaEmrService extends OpenmrsService {
 	 */
 	@Transactional(readOnly = true)
 	boolean isSetupRequired();
-	
+
 	/**
 	 * Sets the default location for this server, i.e. the value that should be auto-set for new
 	 * encounters, visits, etc.
@@ -96,4 +94,19 @@ public interface KenyaEmrService extends OpenmrsService {
 	 * @param startFrom the base identifier to start from
 	 */
 	void setupHivUniqueIdentifierSource(String startFrom);
+
+	public List<Object> executeSqlQuery(String query, Map<String, Object> substitutions);
+	public List<Object> executeHqlQuery(String query, Map<String, Object> substitutions);
+
+	/**
+	 * Executes a sql query with params.
+	 * Adapted from Bahmni core
+	 * @param sqlQuery
+	 * @param params
+	 * @return
+	 */
+	@Authorized
+	public List<SimpleObject> search(String sqlQuery, Map<String, String[]> params);
+
+	public SimpleObject sendKenyaEmrSms(String recipient, String message);
 }

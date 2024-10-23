@@ -1,22 +1,18 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.reporting.library.shared.mchms;
 
 import org.openmrs.Concept;
 import org.openmrs.module.kenyacore.report.ReportUtils;
 import org.openmrs.module.kenyacore.report.cohort.definition.CalculationCohortDefinition;
+import org.openmrs.module.kenyacore.report.cohort.definition.DateCalculationCohortDefinition;
 import org.openmrs.module.kenyaemr.ArtAssessmentMethod;
 import org.openmrs.module.kenyaemr.Dictionary;
 import org.openmrs.module.kenyaemr.PregnancyStage;
@@ -25,7 +21,6 @@ import org.openmrs.module.kenyaemr.calculation.library.mchms.DiscordantCoupleCal
 import org.openmrs.module.kenyaemr.calculation.library.mchms.MchmsFirstVisitDateCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.mchms.MchmsHivTestDateCalculation;
 import org.openmrs.module.kenyaemr.calculation.library.mchms.TestedForHivInMchmsCalculation;
-import org.openmrs.module.kenyacore.report.cohort.definition.DateCalculationCohortDefinition;
 import org.openmrs.module.kenyaemr.reporting.library.shared.common.CommonCohortLibrary;
 import org.openmrs.module.reporting.cohort.definition.CohortDefinition;
 import org.openmrs.module.reporting.cohort.definition.CompositionCohortDefinition;
@@ -172,5 +167,48 @@ public class MchmsCohortLibrary {
 		cohortCd.addSearch("artAssessmentOnFirstVisit", ReportUtils.map((CohortDefinition) calculationCd, "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
 		cohortCd.setCompositionString("firstMchmsVisitWithinPeriod AND artAssessmentOnFirstVisit");
 		return cohortCd;
+	}
+
+	public CohortDefinition testedForHivInMchms() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "Start Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "End Date", Date.class));
+		cd.addSearch("antenatal", ReportUtils.map(testedForHivInMchms(PregnancyStage.ANTENATAL, null), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("delivery", ReportUtils.map(testedForHivInMchms(PregnancyStage.DELIVERY, null), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("postnatal", ReportUtils.map(testedForHivInMchms(PregnancyStage.POSTNATAL, null), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("antenatal OR delivery OR postnatal");
+		return cd;
+	}
+
+	public CohortDefinition testedHivPositiveInMchms() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "Start Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "End Date", Date.class));
+		cd.addSearch("enrollment", ReportUtils.map(testedForHivInMchms(PregnancyStage.BEFORE_ENROLLMENT, Dictionary.getConcept(Dictionary.POSITIVE)), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("antenatal", ReportUtils.map(testedForHivInMchms(PregnancyStage.DELIVERY, Dictionary.getConcept(Dictionary.POSITIVE)), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("delivery", ReportUtils.map(testedForHivInMchms(PregnancyStage.POSTNATAL, Dictionary.getConcept(Dictionary.POSITIVE)), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("postnatal", ReportUtils.map(testedForHivInMchms(PregnancyStage.POSTNATAL, Dictionary.getConcept(Dictionary.POSITIVE)), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("enrollment OR antenatal OR delivery OR postnatal");
+		return cd;
+	}
+
+	public CohortDefinition testedForHivBeforeOrDuringMchms() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "Start Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "End Date", Date.class));
+		cd.addSearch("during", ReportUtils.map(testedForHivInMchms(), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("enrollment", ReportUtils.map(testedForHivInMchms(PregnancyStage.BEFORE_ENROLLMENT, Dictionary.getConcept(Dictionary.POSITIVE)), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("during OR enrollment");
+		return cd;
+	}
+
+	public CohortDefinition assessedForArtEligibilityTotal() {
+		CompositionCohortDefinition cd = new CompositionCohortDefinition();
+		cd.addParameter(new Parameter("onOrAfter", "Start Date", Date.class));
+		cd.addParameter(new Parameter("onOrBefore", "End Date", Date.class));
+		cd.addSearch("cd4", ReportUtils.map(assessedForArtEligibility(ArtAssessmentMethod.CD4_COUNT), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.addSearch("who", ReportUtils.map(assessedForArtEligibility(ArtAssessmentMethod.WHO_STAGING), "onOrAfter=${onOrAfter},onOrBefore=${onOrBefore}"));
+		cd.setCompositionString("cd4 OR who");
+		return cd;
 	}
 }

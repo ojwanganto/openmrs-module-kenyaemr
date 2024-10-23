@@ -3,10 +3,8 @@
 
 	def dataPoints = []
 
-	dataPoints << [label: "Gestation (weeks)", value: calculations.gestation]
 	dataPoints << [label: "HIV Status", value: calculations.hivStatus]
-	dataPoints << [label: "On Prophylaxis", value: calculations.onProhylaxis]
-	dataPoints << [label: "On HAART", value: calculations.onHaart]
+	dataPoints << [label: "On ART", value: calculations.onHaart]
 
 %>
 

@@ -1,15 +1,11 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
 package org.openmrs.module.kenyaemr.calculation.library.hiv.art;
 
@@ -38,20 +34,20 @@ public class DateARV2Calculation extends AbstractPatientCalculation {
 		Set<Integer> patientsOnSecondLine = CalculationUtils.patientsThatPass(calculate(new OnSecondLineArtCalculation(), cohort, context));
 		CalculationResultMap currentArvs = calculate(new CurrentArtRegimenCalculation(), cohort, context);
 		CalculationResultMap result = new CalculationResultMap();
-		for (Integer ptId : patientsOnSecondLine) {
+		for (Integer ptId : cohort) {
 			Date secondLineStartDate = null;
 			SimpleResult currentArvResult = (SimpleResult) currentArvs.get(ptId);
-			if (currentArvResult != null) {
+			if (currentArvResult != null && patientsOnSecondLine.contains(ptId)) {
 				RegimenOrder currentRegimen = (RegimenOrder) currentArvResult.getValue();
 				Set<DrugOrder> drugs = currentRegimen.getDrugOrders();
-				for(DrugOrder o:drugs){
-					secondLineStartDate = o.getStartDate();
+				for (DrugOrder o : drugs) {
+					if (o.getDateActivated() != null) {
+						secondLineStartDate = o.getDateActivated();
+						break;
+					}
 				}
 			}
-			if(secondLineStartDate != null){
-				result.put(ptId, new SimpleResult(secondLineStartDate, this));
-			}
-
+			result.put(ptId, new SimpleResult(secondLineStartDate, this));
 		}
 		return result;
 	}

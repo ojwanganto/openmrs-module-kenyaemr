@@ -1,25 +1,22 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.fragment.controller;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.Form;
 import org.openmrs.Visit;
 import org.openmrs.module.appframework.domain.AppDescriptor;
 import org.openmrs.module.kenyacore.form.FormDescriptor;
 import org.openmrs.module.kenyacore.form.FormManager;
+import org.openmrs.module.kenyaemr.util.EmrUtils;
 import org.openmrs.module.kenyaui.KenyaUiUtils;
 import org.openmrs.ui.framework.SimpleObject;
 import org.openmrs.ui.framework.UiUtils;
@@ -49,8 +46,19 @@ public class VisitAvailableFormsFragmentController {
 
 		List<SimpleObject> availableForms = new ArrayList<SimpleObject>();
 
+		List<String> formsList = EmrUtils.getFormsToShowInLegacyUI();
+
 		for (FormDescriptor descriptor : formManager.getAllUncompletedFormsForVisit(currentApp, visit)) {
-			availableForms.add(ui.simplifyObject(descriptor.getTarget()));
+			/**
+			 * Display only active forms
+			 * we filter forms based on the configured whitelist. The idea is to temporarily take care of any partner forms in the add-on modules
+			 * We block everything if no configuration exists i.e. default to an empty whitelist
+			 */
+
+			if(!descriptor.getTarget().isRetired() && formsList.contains(descriptor.getTarget().getUuid())) {
+				availableForms.add(ui.simplifyObject(descriptor.getTarget()));
+			}
+			continue;
 		}
 
 		model.addAttribute("availableForms", availableForms);

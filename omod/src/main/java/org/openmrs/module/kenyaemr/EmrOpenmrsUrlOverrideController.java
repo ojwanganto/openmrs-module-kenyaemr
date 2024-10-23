@@ -1,15 +1,11 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
 package org.openmrs.module.kenyaemr;
 
@@ -25,9 +21,10 @@ public class EmrOpenmrsUrlOverrideController {
 
 	private static final String OPENMRS_HOME_URL = "index.htm";
 	private static final String OPENMRS_LOGIN_URL = "login.htm";
-	private static final String KENYAEMR_HOME_URL = EmrConstants.MODULE_ID + "/home.page";
-	private static final String KENYAEMR_LOGIN_URL = EmrConstants.MODULE_ID + "/login.page";
+	private static final String KENYAEMR_HOME_URL =  "spa/home";
+	private static final String KENYAEMR_LOGIN_URL = "spa/login";
 	private static final String KENYAEMR_FORGOTPASSWORD_URL = EmrConstants.MODULE_ID + "/forgotPassword.page";
+	private static final String KENYAEMR_HELPDIALOG_URL = EmrConstants.MODULE_ID + "/helpDialog.page";
 
 	/**
 	 * Handles requests for index.htm. If user is authenticated they will be forwarded to this module's home page. If
@@ -35,7 +32,7 @@ public class EmrOpenmrsUrlOverrideController {
 	 */
 	@RequestMapping("/index.htm")
 	public String showOurHomePage() {
-		return Context.isAuthenticated() ? ("forward:/" + KENYAEMR_HOME_URL) : ("redirect:/" + OPENMRS_LOGIN_URL);
+		return Context.isAuthenticated() ? ("redirect:" + KENYAEMR_HOME_URL) : ("redirect:" + OPENMRS_LOGIN_URL);
 	}
 
 	/**
@@ -44,7 +41,7 @@ public class EmrOpenmrsUrlOverrideController {
 	 */
 	@RequestMapping("/login.htm")
 	public String showOurLoginPage() {
-		return Context.isAuthenticated() ? ("redirect:/" + OPENMRS_HOME_URL) : ("forward:/" + KENYAEMR_LOGIN_URL);
+		return Context.isAuthenticated() ? ("redirect:" + OPENMRS_HOME_URL) : ("redirect:" + KENYAEMR_LOGIN_URL);
 	}
 
 	/**
@@ -53,6 +50,14 @@ public class EmrOpenmrsUrlOverrideController {
 	 */
 	@RequestMapping("/forgotPassword.form")
 	public String showOurForgotPasswordPage() {
-		return Context.isAuthenticated() ? ("redirect:/" + OPENMRS_HOME_URL) : ("forward:/" + KENYAEMR_FORGOTPASSWORD_URL);
+		return Context.isAuthenticated() ? ("redirect:/" + OPENMRS_HOME_URL) : ("redirect:/" + KENYAEMR_FORGOTPASSWORD_URL);
+	}
+	/**
+	 * Handles requests to helpDialog.form. If user is authenticated they will be redirected to this modules's home
+	 * page. If not they will be forwarded to this module's help dialog page.
+	 */
+	@RequestMapping("/helpDialog.form")
+	public String showOurHelpDialogPage() {
+		return Context.isAuthenticated() ? ("redirect:/" + KENYAEMR_HELPDIALOG_URL) : ("forward:/" + KENYAEMR_HELPDIALOG_URL);
 	}
 }

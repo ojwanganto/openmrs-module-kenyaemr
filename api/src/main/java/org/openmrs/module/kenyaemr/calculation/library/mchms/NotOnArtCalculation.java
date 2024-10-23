@@ -1,17 +1,12 @@
 /**
- * The contents of this file are subject to the OpenMRS Public License
- * Version 1.0 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://license.openmrs.org
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can
+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
  *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
- * License for the specific language governing rights and limitations
- * under the License.
- *
- * Copyright (C) OpenMRS, LLC.  All Rights Reserved.
+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+ * graphic logo is a trademark of OpenMRS Inc.
  */
-
 package org.openmrs.module.kenyaemr.calculation.library.mchms;
 
 import org.joda.time.DateTime;
@@ -22,11 +17,14 @@ import org.openmrs.calculation.patient.PatientCalculationContext;
 import org.openmrs.calculation.result.CalculationResultMap;
 import org.openmrs.module.kenyacore.calculation.AbstractPatientCalculation;
 import org.openmrs.module.kenyacore.calculation.BooleanResult;
+import org.openmrs.module.kenyacore.calculation.CalculationUtils;
 import org.openmrs.module.kenyacore.calculation.Calculations;
 import org.openmrs.module.kenyacore.calculation.Filters;
 import org.openmrs.module.kenyacore.calculation.PatientFlagCalculation;
 import org.openmrs.module.kenyaemr.Dictionary;
 import org.openmrs.module.kenyaemr.calculation.EmrCalculationUtils;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.art.EligibleForArtCalculation;
+import org.openmrs.module.kenyaemr.calculation.library.hiv.art.OnArtCalculation;
 import org.openmrs.module.kenyaemr.metadata.MchMetadata;
 import org.openmrs.module.metadatadeploy.MetadataUtils;
 
@@ -39,16 +37,17 @@ import java.util.Set;
  * Calculates whether a mother is HIV+ but is not on ART. Calculation returns true if mother
  * is alive, enrolled in the MCH program, gestation is greater than 14 weeks, is HIV+ and was
  * not indicated as being on ART in the last encounter.
+ *  Retired flag
  */
-public class NotOnArtCalculation extends AbstractPatientCalculation implements PatientFlagCalculation {
+public class NotOnArtCalculation extends AbstractPatientCalculation  {
 
 	/**
 	 * @see org.openmrs.module.kenyacore.calculation.PatientFlagCalculation#getFlagMessage()
 	 */
-	@Override
-	public String getFlagMessage() {
-		return "Not on ART";
-	}
+//	@Override
+//	public String getFlagMessage() {
+//		return "Not on ART";
+//	}
 
 	/**
 	 * @see org.openmrs.calculation.patient.PatientCalculation#evaluate(java.util.Collection, java.util.Map, org.openmrs.calculation.patient.PatientCalculationContext)
@@ -65,12 +64,14 @@ public class NotOnArtCalculation extends AbstractPatientCalculation implements P
 		CalculationResultMap lastHivStatusObss = Calculations.lastObs(Dictionary.getConcept(Dictionary.HIV_STATUS), inMchmsProgram, context);
 		CalculationResultMap artStatusObss = Calculations.lastObs(Dictionary.getConcept(Dictionary.ANTIRETROVIRAL_USE_IN_PREGNANCY), inMchmsProgram, context);
 		CalculationResultMap lmpObss = Calculations.firstObs(Dictionary.getConcept(Dictionary.LAST_MONTHLY_PERIOD), inMchmsProgram, context);
+		Set<Integer> onART = CalculationUtils.patientsThatPass(calculate(new OnArtCalculation(), cohort, context));
+		Set<Integer> eligibleForArt = CalculationUtils.patientsThatPass(calculate(new EligibleForArtCalculation(), cohort, context));
 
 		CalculationResultMap ret = new CalculationResultMap();
 		for (Integer ptId : cohort) {
 			// Is patient alive and in MCH program?
 			boolean notOnArt = false;
-			if (inMchmsProgram.contains(ptId)) {
+			if (inMchmsProgram.contains(ptId) && !(onART.contains(ptId)) && !(eligibleForArt.contains(ptId))) {
 				Concept lastHivStatus = EmrCalculationUtils.codedObsResultForPatient(lastHivStatusObss, ptId);
 				Concept lastArtStatus = EmrCalculationUtils.codedObsResultForPatient(artStatusObss, ptId);
 				Date lastLmpDate = EmrCalculationUtils.datetimeObsResultForPatient(lmpObss, ptId);
